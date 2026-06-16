@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot name="bean2">
+  <!-- adding fixed frame link for gazebo -->
+  <link name="world"/>
+
+<!-- Virtual Joint to fixate/move robot -->
+  <joint name="fixedFrameToWorld" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+  </joint>
+  
+  <!-- Basic Extraterrestrial Articulated maNipulator2 (BEAN2) is defined-->
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.0076403 -0.0077316 0.30748"
+        rpy="0 0 0" />
+      <mass
+        value="140.69" />
+      <inertia
+        ixx="8.9233"
+        ixy="-0.0083106"
+        ixz="0.19212"
+        iyy="8.9454"
+        iyz="-0.18789"
+        izz="5.5009" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.706 0.82 0.929 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="link_one">
+    <inertial>
+      <origin
+        xyz="0.23706 0.42192 0.17122"
+        rpy="0 0 0" />
+      <mass
+        value="264.21" />
+      <inertia
+        ixx="32.206"
+        ixy="-15.566"
+        ixz="-2.4455"
+        iyy="31.567"
+        iyz="-3.4761"
+        izz="53.733" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_one.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_one.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_one"
+    type="revolute">
+    <origin
+      xyz="0 0 0.875"
+      rpy="0 0 -1.5708" />
+    <parent
+      link="base_link" />
+    <child
+      link="link_one" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="1300"
+      velocity="0.3" />
+    <dynamics
+      damping="0.2"
+      friction="0.2" />
+  </joint>
+  <link
+    name="link_two">
+    <inertial>
+      <origin
+        xyz="-2.4928 -0.0010823 0.17636"
+        rpy="0 0 0" />
+      <mass
+        value="615.5" />
+      <inertia
+        ixx="12.815"
+        ixy="-2.9324"
+        ixz="10.247"
+        iyy="1781.1"
+        iyz="0.022231"
+        izz="1779.4" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_two.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_two.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_two"
+    type="revolute">
+    <origin
+      xyz="0.67 1.035 0.21"
+      rpy="1.5708 0 -3.1416" />
+    <parent
+      link="link_one" />
+    <child
+      link="link_two" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="1300"
+      velocity="0.2" />
+    <dynamics
+      damping="0.2"
+      friction="0.2" />
+  </joint>
+  <link
+    name="link_three">
+    <inertial>
+      <origin
+        xyz="2.2935 0.0014154 -0.018803"
+        rpy="0 0 0" />
+      <mass
+        value="468.03" />
+      <inertia
+        ixx="9.0711"
+        ixy="1.3435"
+        ixz="5.0617"
+        iyy="837.4"
+        iyz="-0.01244"
+        izz="836.79" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_three.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_three.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_three"
+    type="revolute">
+    <origin
+      xyz="-5.46 0 0.1875"
+      rpy="0 0 3.1416" />
+    <parent
+      link="link_two" />
+    <child
+      link="link_three" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-1.4"
+      upper="2.44"
+      effort="1000"
+      velocity="0.2" />
+    <dynamics
+      damping="0.2"
+      friction="0.2" />
+  </joint>
+  <link
+    name="link_four">
+    <inertial>
+      <origin
+        xyz="2.1783 7.8425E-07 -0.10837"
+        rpy="0 0 0" />
+      <mass
+        value="443.02" />
+      <inertia
+        ixx="35.29"
+        ixy="-0.00010298"
+        ixz="113.09"
+        iyy="1111.3"
+        iyz="1.5385E-05"
+        izz="1082" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_four.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_four.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_four"
+    type="revolute">
+    <origin
+      xyz="4.4 0 0.375"
+      rpy="3.1416 0 3.1416" />
+    <parent
+      link="link_three" />
+    <child
+      link="link_four" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="1000"
+      velocity="0.2" />
+    <dynamics
+      damping="0.2"
+      friction="0.2" />
+  </joint>
+  <link
+    name="link_five">
+    <inertial>
+      <origin
+        xyz="-1.2323E-07 0.10322 0.047186"
+        rpy="0 0 0" />
+      <mass
+        value="65.693" />
+      <inertia
+        ixx="3.2326"
+        ixy="2.9354E-06"
+        ixz="-1.8121E-06"
+        iyy="1.62"
+        iyz="0.31997"
+        izz="2.4339" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_five.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_five.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_five"
+    type="revolute">
+    <origin
+      xyz="4.835 0 -0.65"
+      rpy="1.5708 0 -1.5708" />
+    <parent
+      link="link_four" />
+    <child
+      link="link_five" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-6.28"
+      upper="6.28"
+      effort="500"
+      velocity="0.5" />
+    <dynamics
+      damping="0.1"
+      friction="0.1" />
+  </joint>
+  <link
+    name="link_six">
+    <inertial>
+      <origin
+        xyz="-0.0031191 -0.0018008 -0.12806"
+        rpy="0 0 0" />
+      <mass
+        value="13.062" />
+      <inertia
+        ixx="0.12452"
+        ixy="-0.0028533"
+        ixz="0.0017542"
+        iyy="0.12781"
+        iyz="0.0010128"
+        izz="0.10261" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_six.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bean3_description/meshes/link_six.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_six"
+    type="revolute">
+    <origin
+      xyz="0 0.5 0"
+      rpy="-1.5708 0 3.1416" />
+    <parent
+      link="link_five" />
+    <child
+      link="link_six" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-6.28"
+      upper="6.28"
+      effort="500"
+      velocity="0.8" />
+    <dynamics
+      damping="0.1"
+      friction="0.1" />
+  </joint>
+
+
+</robot>

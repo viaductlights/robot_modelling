@@ -1,0 +1,9 @@
+# Default initial positions for bean2's ros2_control fake system
+
+initial_positions:
+  joint_five: 0
+  joint_four: 0
+  joint_one: 0
+  joint_six: 0
+  joint_three: 0
+  joint_two: 0

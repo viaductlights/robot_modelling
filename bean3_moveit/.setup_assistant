@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: bean3_description
+    relative_path: urdf/bean2.urdf
+  srdf:
+    relative_path: config/bean2.srdf
+  package_settings:
+    author_name: re25m012
+    author_email: re25m012@technikum-wien.at
+    generated_timestamp: 1778621197
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
