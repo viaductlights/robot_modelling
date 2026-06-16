@@ -9,20 +9,14 @@ def generate_launch_description():
     bean3_desc_share = get_package_share_directory('bean3_description')
     gz_package = get_package_share_directory('ros_gz_sim')
 
-    # Fix 1: point to the models/ subdirectory, not the package root
     append_sim_models = AppendEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
-        value=os.path.join(sim_share, 'models')   # <-- was: sim_share
+        value=os.path.join(sim_share, 'models')
     )
     append_sim_worlds = AppendEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
         value=os.path.join(sim_share, 'worlds')
     )
-    append_bean_share = AppendEnvironmentVariable(
-        name='GZ_SIM_RESOURCE_PATH',
-        value=bean3_desc_share
-    )
-
     bean3_description = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             os.path.join(bean3_desc_share, 'launch', 'bean3_gz.launch.py')
@@ -33,7 +27,7 @@ def generate_launch_description():
             os.path.join(gz_package, 'launch', 'gz_sim.launch.py')
         ),
         launch_arguments={
-            'gz_args': os.path.join(sim_share, 'worlds', 'testworld.sdf'),
+            'gz_args': os.path.join(sim_share, 'worlds', 'orbit.sdf'),
             'use_sim_time': 'True'
         }.items(),
     )
@@ -41,7 +35,6 @@ def generate_launch_description():
     ld = LaunchDescription()
     ld.add_action(append_sim_models)
     ld.add_action(append_sim_worlds)
-    ld.add_action(append_bean_share)   # Fix 2: was missing entirely
-    ld.add_action(bean3_description)
     ld.add_action(gazebo)
+    ld.add_action(bean3_description)
     return ld

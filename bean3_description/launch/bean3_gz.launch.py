@@ -15,7 +15,7 @@ def generate_launch_description():
     #define ros2 packages
     package_name = 'bean3_description'
     robot_package = get_package_share_directory(package_name)
-#    gz_package = get_package_share_directory('ros_gz_sim')
+    gz_package = get_package_share_directory('ros_gz_sim')
     
     #GZ environment variable for remapping directory paths
     os.environ["GZ_SIM_RESOURCE_PATH"] = os.path.join(os.path.join(get_package_prefix(package_name), "share"))
