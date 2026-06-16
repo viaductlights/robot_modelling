@@ -1,7 +1,8 @@
+
 <?xml version="1.0" ?>
 
 <sdf version="1.9">
-  <world name="orbit">
+  <world name="testworld">
     <gravity>0 0 0</gravity>
 
     <scene>
@@ -40,18 +41,5 @@
       <direction>0 0 -1</direction>
       <visualize>false</visualize>
     </light>
-
-    <include>
-      <uri>model://earth</uri>
-    </include>
-
-    <include>
-      <uri>model://iss</uri>
-    </include>
-
-    <include>
-      <uri>model://capsule</uri>
-    </include>
-
   </world>
 </sdf>
