@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="nemo1">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-4.0251E-17 5.7935E-34 0.24074"
+        rpy="0 0 0" />
+      <mass
+        value="39.819" />
+      <inertia
+        ixx="0.95808"
+        ixy="9.1833E-33"
+        ixz="1.4543E-18"
+        iyy="0.95808"
+        iyz="-2.0879E-32"
+        izz="0.84991" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.95686 0.92941 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="link_1">
+    <inertial>
+      <origin
+        xyz="0.010338 -0.0004773 0.18391"
+        rpy="0 0 0" />
+      <mass
+        value="49.442" />
+      <inertia
+        ixx="0.72708"
+        ixy="0.0024865"
+        ixz="-0.12127"
+        iyy="0.89497"
+        iyz="-0.00065038"
+        izz="0.71565" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="J1"
+    type="revolute">
+    <origin
+      xyz="0 0 0.305"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link_1" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="2000"
+      velocity="0.8" />
+  </joint>
+  <link
+    name="link_2">
+    <inertial>
+      <origin
+        xyz="-0.405 -7.1675E-05 0.1354"
+        rpy="0 0 0" />
+      <mass
+        value="23.562" />
+      <inertia
+        ixx="0.13291"
+        ixy="-7.5138E-07"
+        ixz="2.3007E-07"
+        iyy="3.415"
+        iyz="5.699E-05"
+        izz="3.4052" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="J2"
+    type="revolute">
+    <origin
+      xyz="0.15 0 0.3"
+      rpy="0 1.5707963267949 0" />
+    <parent
+      link="link_1" />
+    <child
+      link="link_2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="2000"
+      velocity="0.8" />
+  </joint>
+  <link
+    name="link_3">
+    <inertial>
+      <origin
+        xyz="-0.41186 -7.289E-05 -0.086846"
+        rpy="0 0 0" />
+      <mass
+        value="23.169" />
+      <inertia
+        ixx="0.12961"
+        ixy="1.2349E-05"
+        ixz="0.013812"
+        iyy="3.3462"
+        iyz="-5.4544E-05"
+        izz="3.3396" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="J3"
+    type="revolute">
+    <origin
+      xyz="-0.81 0 0.05"
+      rpy="0 0 0" />
+    <parent
+      link="link_2" />
+    <child
+      link="link_3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="2000"
+      velocity="0.8" />
+  </joint>
+  <link
+    name="link_4">
+    <inertial>
+      <origin
+        xyz="-0.20303 5.5903E-05 0.093029"
+        rpy="0 0 0" />
+      <mass
+        value="15.206" />
+      <inertia
+        ixx="0.087692"
+        ixy="-0.00022912"
+        ixz="0.046098"
+        iyy="1.3816"
+        iyz="-2.2268E-05"
+        izz="1.3789" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="J4"
+    type="revolute">
+    <origin
+      xyz="-0.81 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="link_3" />
+    <child
+      link="link_4" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="2000"
+      velocity="0.8" />
+  </joint>
+  <link
+    name="link_5">
+    <inertial>
+      <origin
+        xyz="0.023474 7.7273E-05 0.13435"
+        rpy="0 0 0" />
+      <mass
+        value="11.232" />
+      <inertia
+        ixx="0.058934"
+        ixy="7.6333E-05"
+        ixz="-0.0089365"
+        iyy="0.06121"
+        iyz="-3.0975E-05"
+        izz="0.056584" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_5.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_5.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="J5"
+    type="revolute">
+    <origin
+      xyz="-0.707 0 0.107"
+      rpy="3.14159265358979 1.5707963267949 0" />
+    <parent
+      link="link_4" />
+    <child
+      link="link_5" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="2000"
+      velocity="0.8" />
+  </joint>
+  <link
+    name="link_6">
+    <inertial>
+      <origin
+        xyz="-0.023472 8.0222E-05 0.08448"
+        rpy="0 0 0" />
+      <mass
+        value="10.839" />
+      <inertia
+        ixx="0.053489"
+        ixy="-3.1793E-05"
+        ixz="0.0081853"
+        iyy="0.057908"
+        iyz="-7.3889E-05"
+        izz="0.058602" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_6.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/link_6.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="J6"
+    type="revolute">
+    <origin
+      xyz="0.105 0 0.157"
+      rpy="0 1.5708 0" />
+    <parent
+      link="link_5" />
+    <child
+      link="link_6" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="2000"
+      velocity="0.8" />
+  </joint>
+  <link
+    name="EE">
+    <inertial>
+      <origin
+        xyz="-3.8804E-08 -1.3523E-08 0.14436"
+        rpy="0 0 0" />
+      <mass
+        value="10.348" />
+      <inertia
+        ixx="0.090992"
+        ixy="-1.3474E-08"
+        ixz="5.0453E-08"
+        iyy="0.090992"
+        iyz="1.7583E-08"
+        izz="0.066002" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/EE.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://nemo1_description/meshes/EE.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="J7"
+    type="revolute">
+    <origin
+      xyz="-0.107 0 0.105"
+      rpy="3.14159265358979 1.5707963267949 0" />
+    <parent
+      link="link_6" />
+    <child
+      link="EE" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="2000"
+      velocity="0.8" />
+  </joint>
+</robot>
