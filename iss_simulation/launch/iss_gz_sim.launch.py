@@ -1,27 +1,21 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, AppendEnvironmentVariable
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
-    sim_share = get_package_share_directory('iss_simulation')
-    bean3_desc_share = get_package_share_directory('bean3_description')
+    # Get package share directories
+    robots_desc_share = get_package_share_directory('iss_simulation')
     gz_package = get_package_share_directory('ros_gz_sim')
+    sim_share = get_package_share_directory('iss_simulation')
 
-    append_sim_models = AppendEnvironmentVariable(
-        name='GZ_SIM_RESOURCE_PATH',
-        value=os.path.join(sim_share, 'models')
-    )
-    append_sim_worlds = AppendEnvironmentVariable(
-        name='GZ_SIM_RESOURCE_PATH',
-        value=os.path.join(sim_share, 'worlds')
-    )
-    bean3_description = IncludeLaunchDescription(
+    robots_description = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            os.path.join(bean3_desc_share, 'launch', 'bean3_gz.launch.py')
+            os.path.join(robots_desc_share, 'launch', 'robots_gz_bringup.launch.py')
         ])
     )
+    
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(gz_package, 'launch', 'gz_sim.launch.py')
@@ -33,8 +27,6 @@ def generate_launch_description():
     )
 
     ld = LaunchDescription()
-    ld.add_action(append_sim_models)
-    ld.add_action(append_sim_worlds)
-    ld.add_action(gazebo)
-    ld.add_action(bean3_description)
+    ld.add_action(robots_description)
+    ld.add_action(gazebo) 
     return ld
