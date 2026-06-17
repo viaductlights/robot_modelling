@@ -4,29 +4,51 @@ import xacro
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch.substitutions import LaunchConfiguration
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, SetEnvironmentVariable
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import SetEnvironmentVariable
 
 def generate_launch_description():
-    #define ros2 packages
+    # define ros2 packages
     package_name = 'bean3_description'
     robot_package = get_package_share_directory(package_name)
     gz_package = get_package_share_directory('ros_gz_sim')
-    
-    #GZ environment variable for remapping directory paths
-    os.environ["GZ_SIM_RESOURCE_PATH"] = os.path.join(os.path.join(get_package_prefix(package_name), "share"))
+    default_rviz_config_path = PathJoinSubstitution([robot_package, 'rviz', 'rviz_basic_settings.rviz'])
 
-    #define urdf
+    # define urdf
     urdf_file_name = 'bean2.urdf'
     robot_description_file = os.path.join(robot_package, 'urdf', urdf_file_name)
     robot_description_config = xacro.process_file(
         robot_description_file
     )
     
+    # GZ environment variable for remapping directory paths
+    os.environ["GZ_SIM_RESOURCE_PATH"] = os.path.join(os.path.join(get_package_prefix(package_name), "share"))
+
+    # declare launch arguments
+    gui_arg = DeclareLaunchArgument(
+        name='gui',
+        default_value='true',
+        choices=['true', 'false'],
+        description='Flag to enable joint_state_publisher_gui'
+    )
+
+    model_arg = DeclareLaunchArgument(
+        name='model',
+        default_value=robot_description_file,
+        description='Absolute path to robot URDF file'
+    )
+
+    rviz_config_arg = DeclareLaunchArgument(
+        name='rvizconfig',
+        default_value=default_rviz_config_path,
+        description='Absolute path to rviz config file'
+    )
+
+   
     robot_description = {'robot_description': robot_description_config.toxml()}
 
     # robot state publisher
@@ -36,6 +58,21 @@ def generate_launch_description():
         name='robot_state_publisher',
         output='both',
         parameters=[robot_description,{'use_sim_time':True}],
+    )
+
+    # Joint state publisher GUI node (runs when gui:=true)
+    joint_state_publisher_gui_node = Node(
+        package='joint_state_publisher_gui',
+        executable='joint_state_publisher_gui',
+        condition=IfCondition(LaunchConfiguration('gui'))
+    )
+
+    # Regular joint state publisher (runs when gui:=false)
+    joint_state_publisher_node = Node(
+        package='joint_state_publisher',
+        executable='joint_state_publisher',
+        condition=UnlessCondition(LaunchConfiguration('gui')),
+        arguments=[LaunchConfiguration('model')]
     )
 
     # launch gazebo
@@ -76,5 +113,23 @@ def generate_launch_description():
         output='screen'
     )
 
-    return LaunchDescription([robot_state_publisher,spawn,bridge,joint_state_broadcaster])
+    #rviz node
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        arguments=['-d', LaunchConfiguration('rvizconfig')]
+    )
 
+    ld = LaunchDescription()
+    ld.add_action(gui_arg)
+    ld.add_action(model_arg)
+    ld.add_action(rviz_config_arg)
+    ld.add_action(robot_state_publisher)
+    ld.add_action(spawn)
+    ld.add_action(bridge)
+    ld.add_action(joint_state_broadcaster)
+    ld.add_action(joint_state_publisher_gui_node)
+    ld.add_action(joint_state_publisher_node)
+    ld.add_action(rviz_node)
+
+    return ld

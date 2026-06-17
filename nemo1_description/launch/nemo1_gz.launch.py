@@ -39,7 +39,7 @@ def generate_launch_description():
     )
 
     # launch gazebo
-    #gazebo = IncludeLaunchDescription(PythonLaunchDescriptionSource(os.path.join(gz_package, 'launch', 'gz_sim.launch.py')),launch_arguments={'gz_args': '-r spacecraft.sdf','use_sim_time':'True'}.items(),)
+    gazebo = IncludeLaunchDescription(PythonLaunchDescriptionSource(os.path.join(gz_package, 'launch', 'gz_sim.launch.py')),launch_arguments={'gz_args': '-r spacecraft.sdf','use_sim_time':'True'}.items(),)
 
     # spawn robot in gazebo
     spawn = Node(
@@ -76,5 +76,5 @@ def generate_launch_description():
         output='screen'
     )
 
-    return LaunchDescription([robot_state_publisher,spawn,bridge,joint_state_broadcaster])
+    return LaunchDescription([robot_state_publisher,gazebo,spawn,bridge,joint_state_broadcaster])
 
