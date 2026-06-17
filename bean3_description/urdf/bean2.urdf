@@ -6,11 +6,11 @@
   <!-- adding fixed frame link for gazebo -->
   <link name="world"/>
 
-<!-- Virtual Joint to fixate/move robot -->
+<!-- Virtual Joint to fix robot to ISS -->
   <joint name="fixedFrameToWorld" type="fixed">
     <parent link="world"/>
     <child link="base_link"/>
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+    <origin rpy="1.57 1.57 0.0" xyz="92.6 -2.35 -35"/>
   </joint>
   
   <!-- Basic Extraterrestrial Articulated maNipulator2 (BEAN2) is defined-->
@@ -421,5 +421,11 @@
       friction="0.1" />
   </joint>
 
-
+  <!--<gazebo>
+	  <plugin filename="libgz-sim-detached-joint-system.co" name="gz::sim::systems::DetatchedJoints">
+		  <child_link>base_link</child_link>
+		  <parent_link>static_table::table_top</parent_link>
+		  <joint_type>fixed</joint_type>
+	  </plugin>
+  </gazebo>-->
 </robot>

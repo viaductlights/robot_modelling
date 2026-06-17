@@ -4,7 +4,8 @@ import xacro
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch.substitutions import LaunchConfiguration
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, RegisterEventHandler
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
@@ -61,24 +62,38 @@ def generate_launch_description():
         parameters=[nemo_robot_description,{'use_sim_time':True}],
     )
 
-    # spawn bean in gazebo
     bean_spawn = Node(
         package='ros_gz_sim',
         executable='create',
-        parameters=[{'name': 'bean2',
-                     'topic': 'bean/robot_description',
-                     'use_sim_time':True}],
+        arguments=[
+            '-name', 'bean2',
+            '-topic', 'bean/robot_description',
+#            '-x', '109.0',
+#            '-y', '1.43',
+#            '-z', '-61',
+#            '-relative_to', 'static_table::table_top',
+        ],
         output='screen',
     )
 
-    # spawn nemo in gazebo
     nemo_spawn = Node(
         package='ros_gz_sim',
         executable='create',
-        parameters=[{'name': 'nemo1',
-                     'topic': 'nemo/robot_description',
-                     'use_sim_time':True}],
+        arguments=[
+            '-name', 'nemo1',
+            '-topic', 'nemo/robot_description',
+            '-x', '1.0',
+            '-y', '0.0',
+            '-z', '0.05',
+            '-relative_to', 'static_table::table_top',
+        ],
         output='screen',
+    )
+    nemo_spawn_after_bean = RegisterEventHandler(
+        OnProcessExit(
+            target_action=bean_spawn,
+            on_exit=[nemo_spawn],
+        )
     )
 
     # joint state broadcaster
@@ -114,7 +129,7 @@ def generate_launch_description():
         bean_robot_state_publisher,
         nemo_robot_state_publisher,
         bean_spawn,
-        nemo_spawn,
+        nemo_spawn_after_bean,
         bridge,
         joint_state_broadcaster
         ])

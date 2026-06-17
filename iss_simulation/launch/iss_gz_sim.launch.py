@@ -22,7 +22,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             'gz_args': os.path.join(sim_share, 'worlds', 'orbit.sdf'),
-            'use_sim_time': 'True'
+            'use_sim_time':'True'
         }.items(),
     )
 

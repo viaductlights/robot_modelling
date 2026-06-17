@@ -41,5 +41,26 @@
       <direction>0 0 -1</direction>
       <visualize>false</visualize>
     </light>
+        <model name="static_table">
+      <static>true</static>
+      <link name="table_top">
+        <pose>0 0 0.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry>
+            <box><size>5.0 2.0 1.0</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>5.0 2.0 1.0</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.6 0.6 1.0</ambient>
+            <diffuse>0.6 0.6 0.6 1.0</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
   </world>
 </sdf>

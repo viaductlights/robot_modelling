@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <!-- The model name 'static_table' matches what the robot plugin expects -->
+  <model name="static_table">
+    <!-- Set to true so the box remains frozen in mid-air/ground and doesn't fall -->
+    <static>true</static>
+    
+    <!-- The target link 'table_top' matches the robot plugin parent link parameter -->
+    <link name="table_top">
+      <!-- Centered at the world origin, elevated 0.5m so the bottom sits on Z=0 -->
+      <pose>0 0 0.5 0 0 0</pose>
+      
+      <inertial>
+        <mass>100.0</mass>
+        <inertia>
+          <ixx>33.33</ixx> <ixy>0.0</ixy> <ixz>0.0</ixz>
+          <iyy>208.33</iyy> <iyz>0.0</iyz>
+          <izz>225.0</izz>
+        </inertia>
+      </inertial>
+
+      <collision name="collision">
+        <geometry>
+          <box>
+            <!-- Size format: X Y Z (Length Width Height) -->
+            <size>5.0 2.0 1.0</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>5.0 2.0 1.0</size>
+          </box>
+        </geometry>
+        <!-- Standard gray material so you can clearly see it in the dark scene -->
+        <material>
+          <ambient>0.6 0.6 0.6 1.0</ambient>
+          <diffuse>0.6 0.6 0.6 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+
