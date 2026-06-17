@@ -1,13 +1,13 @@
 moveit_setup_assistant_config:
   urdf:
-    package: bean3_description
+    package: bean2
     relative_path: urdf/bean2.urdf
   srdf:
     relative_path: config/bean2.srdf
   package_settings:
-    author_name: re25m012
+    author_name: jz
     author_email: re25m012@technikum-wien.at
-    generated_timestamp: 1778621197
+    generated_timestamp: 1777989196
   control_xacro:
     command:
       - position

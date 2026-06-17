@@ -3,7 +3,7 @@
     <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
 
     <!-- Import bean2 urdf file -->
-    <xacro:include filename="$(find bean3_description)/urdf/bean2.urdf" />
+    <xacro:include filename="$(find bean2)/urdf/bean2.urdf" />
 
     <!-- Import control_xacro -->
     <xacro:include filename="bean2.ros2_control.xacro" />

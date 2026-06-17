@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>bean3_moveit</name>
+  <name>nemo1_moveit</name>
   <version>0.3.0</version>
   <description>
-     An automatically generated package with all the configuration and launch files for using the bean2 with the MoveIt Motion Planning Framework
+     An automatically generated package with all the configuration and launch files for using the nemo1 with the MoveIt Motion Planning Framework
   </description>
-  <maintainer email="re25m012@technikum-wien.at">re25m012</maintainer>
+  <maintainer email="re25m022@technikum-wien.at">nemo</maintainer>
 
   <license>BSD-3-Clause</license>
 
@@ -14,7 +14,7 @@
   <url type="bugtracker">https://github.com/moveit/moveit2/issues</url>
   <url type="repository">https://github.com/moveit/moveit2</url>
 
-  <author email="re25m012@technikum-wien.at">re25m012</author>
+  <author email=""></author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
@@ -30,13 +30,13 @@
        We don't include them by default to prevent installing gazebo and all its dependencies. -->
   <!-- <exec_depend>joint_trajectory_controller</exec_depend> -->
   <!-- <exec_depend>gazebo_ros_control</exec_depend> -->
-  <exec_depend>bean3_description</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>moveit_configs_utils</exec_depend>
   <exec_depend>moveit_ros_move_group</exec_depend>
   <exec_depend>moveit_ros_visualization</exec_depend>
   <exec_depend>moveit_ros_warehouse</exec_depend>
   <exec_depend>moveit_setup_assistant</exec_depend>
+  <exec_depend>nemo1</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>rviz_common</exec_depend>
