@@ -421,11 +421,4 @@
       friction="0.1" />
   </joint>
 
-  <!--<gazebo>
-	  <plugin filename="libgz-sim-detached-joint-system.co" name="gz::sim::systems::DetatchedJoints">
-		  <child_link>base_link</child_link>
-		  <parent_link>static_table::table_top</parent_link>
-		  <joint_type>fixed</joint_type>
-	  </plugin>
-  </gazebo>-->
 </robot>
