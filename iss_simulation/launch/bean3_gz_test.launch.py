@@ -5,6 +5,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, AppendEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_ros.actions import SetParameter
 
 def generate_launch_description():
 
@@ -54,6 +55,7 @@ def generate_launch_description():
     )
 
     ld = LaunchDescription()
+    ld.add_action(SetParameter(name='use_sim_time', value=True))
     ld.add_action(append_sim_models)
     ld.add_action(append_sim_worlds)
     ld.add_action(append_bean_share)
