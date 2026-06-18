@@ -87,8 +87,7 @@ def generate_launch_description():
     robot_controller = Node(
             package='controller_manager',
             executable='spawner',
-            arguments=['robot_controller',
-                       'robot_controller', '--param-file', ros2_controllers_yaml],
+            arguments=['robot_controller', '--param-file', ros2_controllers_yaml],
             parameters=[{'use_sim_time': True}],
     )
 
@@ -106,7 +105,7 @@ def generate_launch_description():
     ld.add_action(spawn)
     ld.add_action(bridge)
     ld.add_action(joint_state_broadcaster)
-    #ld.add_action(robot_controller)
+    ld.add_action(robot_controller)
     ld.add_action(rviz_node)
 
     return ld
