@@ -18,10 +18,11 @@ def generate_launch_description():
     # define ros2 packages
     package_name = 'nemo1_description' # for urdf files
     robot_package = get_package_share_directory(package_name)
+    sim_package = get_package_share_directory('iss_simulation')
     gz_package = get_package_share_directory('ros_gz_sim')
     moveit_package = get_package_share_directory('nemo1_moveit')
-    default_rviz_config_path = PathJoinSubstitution([robot_package, 'rviz', 'rviz_basic_settings.rviz'])
-    ros2_controllers_yaml = os.path.join(get_package_share_directory('nemo1_moveit'), 'config', 'ros2_controllers.yaml')
+    default_rviz_config_path = PathJoinSubstitution([sim_package, 'rviz', 'rviz_motion_planning.rviz'])
+    ros2_controllers_yaml = os.path.join(moveit_package, 'config', 'ros2_controllers.yaml')
 
     # define urdf.xacro
     urdf_file = os.path.join(moveit_package, 'config', 'nemo1.urdf.xacro')
