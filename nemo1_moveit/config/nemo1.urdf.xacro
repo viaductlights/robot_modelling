@@ -3,12 +3,20 @@
     <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
 
     <!-- Import nemo1 urdf file -->
-    <xacro:include filename="$(find nemo1)/urdf/nemo1.urdf" />
+    <xacro:include filename="$(find nemo1_description)/urdf/nemo1.urdf" />
 
     <!-- Import control_xacro -->
     <xacro:include filename="nemo1.ros2_control.xacro" />
 
+    <xacro:nemo1_ros2_control name="GazeboSystem"
+	    initial_positions_file="$(arg initial_positions_file)"/>
 
-    <xacro:nemo1_ros2_control name="FakeSystem" initial_positions_file="$(arg initial_positions_file)"/>
+    <!-- ros gz plugin -->
+    <gazebo>
+	    <plugin filename="gz_ros2_control-system"
+		    name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+		    <parameters>$(find nemo1_moveit)/config/ros2_controllers.yaml</parameters>
+	    </plugin>
+    </gazebo>
 
 </robot>
