@@ -4,7 +4,7 @@ import xacro
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch.substitutions import LaunchConfiguration
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, RegisterEventHandler
+from launch.actions import IncludeLaunchDescription, RegisterEventHandler, SetEnvironmentVariable
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
