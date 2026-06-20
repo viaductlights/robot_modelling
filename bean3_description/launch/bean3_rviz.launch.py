@@ -12,7 +12,7 @@ def generate_launch_description():
     
     # Set default paths
     default_model_path = PathJoinSubstitution([roboarm_models_share, 'urdf', 'bean2.urdf'])
-    default_rviz_config_path = PathJoinSubstitution([roboarm_models_share, 'rviz', 'rviz_basic_settings.rviz'])
+    default_rviz_config_path = PathJoinSubstitution([roboarm_models_share, 'rviz', 'bean_renamed.rviz'])
     
     # Declare launch arguments
     gui_arg = DeclareLaunchArgument(

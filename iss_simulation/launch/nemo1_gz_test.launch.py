@@ -3,9 +3,9 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, AppendEnvironmentVariable
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, AppendEnvironmentVariable, GroupAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import SetParameter
+from launch_ros.actions import SetParameter, PushRosNamespace
 
 def generate_launch_description():
 
@@ -45,14 +45,17 @@ def generate_launch_description():
         }.items(),
     )
     
-    move_group = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(moveit_share, 'launch', 'move_group.launch.py')
+    move_group = GroupAction([
+        PushRosNamespace('nemo'),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(moveit_share, 'launch', 'move_group.launch.py')
+            ),
+            launch_arguments={
+                'use_sim_time': 'True'
+            }.items(),
         ),
-        launch_arguments={
-            'use_sim_time': 'True'
-        }.items(),
-    )
+    ])
 
     ld = LaunchDescription()
     ld.add_action(SetParameter(name='use_sim_time', value=True))

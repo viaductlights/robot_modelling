@@ -14,7 +14,10 @@
     <!-- ros gz plugin -->
     <gazebo>
 	    <plugin filename="gz_ros2_control-system"
-	    name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+		    name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+	    <ros>
+		    <namespace>bean</namespace>
+	    </ros>
 	    <parameters>$(find bean2_moveit)/config/ros2_controllers.yaml</parameters>
 	    </plugin>
     </gazebo>

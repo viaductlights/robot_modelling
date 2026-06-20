@@ -1,5 +1,5 @@
 # This config file is used by ros2_control
-controller_manager:
+/**/controller_manager:
   ros__parameters:
     update_rate: 100  # Hz
 
@@ -10,7 +10,7 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-robot_controller:
+/**/robot_controller:
   ros__parameters:
     joints:
       - joint_one

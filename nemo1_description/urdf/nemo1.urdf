@@ -9,13 +9,13 @@
 <!-- Virtual Joint to fix robot to ISS -->
   <joint name="fixedFrameToWorld" type="fixed">
     <parent link="world"/>
-    <child link="base_link"/>
+    <child link="nemo_base_link"/>
     <origin rpy="0.0 0.0 0.0" xyz="88.8 -0.6 -35.2"/>
   </joint>
 
 
   <link
-    name="base_link">
+    name="nemo_base_link">
     <inertial>
       <origin
         xyz="-4.0251E-17 5.7935E-34 0.24074"
@@ -101,7 +101,7 @@
       xyz="0 0 0.305"
       rpy="0 0 0" />
     <parent
-      link="base_link" />
+      link="nemo_base_link" />
     <child
       link="link_1" />
     <axis

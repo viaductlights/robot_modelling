@@ -4,12 +4,11 @@ import xacro
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch.substitutions import LaunchConfiguration
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import SetEnvironmentVariable
 
 def generate_launch_description():
     #define ros2 packages
@@ -34,6 +33,7 @@ def generate_launch_description():
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='robot_state_publisher',
+        namespace='nemo',
         output='both',
         parameters=[robot_description,{'use_sim_time':True}],
     )
@@ -46,7 +46,7 @@ def generate_launch_description():
         package='ros_gz_sim',
         executable='create',
         parameters=[{'name': 'nemo1',
-                     'topic': 'robot_description',
+                     'topic': 'nemo/robot_description',
                      'use_sim_time':True}],
         output='screen',
     )

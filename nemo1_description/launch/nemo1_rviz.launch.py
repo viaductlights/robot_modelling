@@ -11,7 +11,7 @@ def generate_launch_description():
     
     # Set default paths
     default_model_path = PathJoinSubstitution([roboarm_models_share, 'urdf', 'nemo1.urdf'])
-    default_rviz_config_path = PathJoinSubstitution([roboarm_models_share, 'rviz', 'rviz_basic_settings.rviz'])
+    default_rviz_config_path = PathJoinSubstitution([roboarm_models_share, 'rviz', 'nemo_renamed.rviz'])
     
     # Declare launch arguments
     gui_arg = DeclareLaunchArgument(

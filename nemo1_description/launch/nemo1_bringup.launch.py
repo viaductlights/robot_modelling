@@ -21,7 +21,7 @@ def generate_launch_description():
     sim_package = get_package_share_directory('iss_simulation')
     gz_package = get_package_share_directory('ros_gz_sim')
     moveit_package = get_package_share_directory('nemo1_moveit')
-    default_rviz_config_path = PathJoinSubstitution([sim_package, 'rviz', 'rviz_motion_planning.rviz'])
+    default_rviz_config_path = PathJoinSubstitution([robot_package, 'rviz', 'renamed_motion_planning.rviz'])
     ros2_controllers_yaml = os.path.join(moveit_package, 'config', 'ros2_controllers.yaml')
 
     # define urdf.xacro
@@ -32,6 +32,12 @@ def generate_launch_description():
                       os.path.join(moveit_package, 'config', 'initial_positions.yaml')}
     )
     
+    # define sdrf
+    srdf_file = os.path.join(moveit_package, 'config', 'nemo1.srdf')
+    with open(srdf_file, 'r') as f:
+        semantic_content = f.read()
+    robot_description_semantic = {'robot_description_semantic': semantic_content}
+
     # GZ environment variable for remapping directory paths
     os.environ["GZ_SIM_RESOURCE_PATH"] = os.path.join(os.path.join(get_package_prefix(package_name), "share"))
 
@@ -50,6 +56,7 @@ def generate_launch_description():
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='robot_state_publisher',
+        namespace='nemo',
         output='both',
         parameters=[robot_description,{'use_sim_time':True}],
     )
@@ -59,7 +66,7 @@ def generate_launch_description():
         package='ros_gz_sim',
         executable='create',
         parameters=[{'name': 'nemo1',
-                     'topic': 'robot_description',
+                     'topic': 'nemo/robot_description',
                      'use_sim_time':True}],
         output='screen',
     )
@@ -80,7 +87,7 @@ def generate_launch_description():
     joint_state_broadcaster = Node(
         package='controller_manager',
         executable='spawner',
-        arguments=['joint_state_broadcaster'],
+        arguments=['joint_state_broadcaster', '--controller-manager', '/nemo/controller_manager'],
         parameters=[{'use_sim_time':True}],
     )
     
@@ -88,7 +95,8 @@ def generate_launch_description():
     robot_controller = Node(
             package='controller_manager',
             executable='spawner',
-            arguments=['robot_controller', '--param-file', ros2_controllers_yaml],
+            arguments=['robot_controller', '--param-file', ros2_controllers_yaml,
+                       '--controller-manager', '/nemo/controller_manager'],
             parameters=[{'use_sim_time': True}],
     )
 
@@ -97,7 +105,10 @@ def generate_launch_description():
         package='rviz2',
         executable='rviz2',
         arguments=['-d', LaunchConfiguration('rvizconfig')],
-        parameters=[{'use_sim_time': True}],
+        parameters=[{
+            'use_sim_time': True},
+            robot_description,
+            robot_description_semantic],
     )
 
     ld = LaunchDescription()
