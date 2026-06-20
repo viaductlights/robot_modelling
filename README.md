@@ -15,10 +15,12 @@
 `ros2 launch iss_simulation iss_moveit_gz_sim.launch.py`  
 
 #### note  
-need to manually set bean's controllers when switching from nemo to bean (and possibly vice versa)  
+need to manually set bean's controllers when switching from nemo to bean (and possibly vice versa) with moveit  
+
 check controller status:  
 `ros2 control list_controllers --controller-manager /bean/controller_manager`  
-set if robot_controller or joint_state_broadcaster as needed:  
+
+set robot_controller or joint_state_broadcaster as needed:  
 `ros2 control set_controller_state robot_controller active --controller-manager /bean/controller_manager`  
 
 ## in progress:  
