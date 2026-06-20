@@ -9,24 +9,25 @@ def generate_launch_description():
     robots_desc_share = get_package_share_directory('iss_simulation')
     gz_package = get_package_share_directory('ros_gz_sim')
     sim_share = get_package_share_directory('iss_simulation')
-
-    robots_description = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            os.path.join(robots_desc_share, 'launch', 'robots_gz_moveit_bringup.launch.py')
-        ])
-    )
-    
+   
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(gz_package, 'launch', 'gz_sim.launch.py')
         ),
         launch_arguments={
-            'gz_args': os.path.join(sim_share, 'worlds', 'orbit.sdf'),
+            'gz_args': '-r ' + os.path.join(sim_share, 'worlds', 'orbit.sdf'),
             'use_sim_time':'True'
         }.items(),
     )
-
+    
+    robots_description = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            os.path.join(robots_desc_share, 'launch', 'robots_gz_moveit_bringup.launch.py')
+        ])
+    )
+ 
     ld = LaunchDescription()
+    ld.add_action(gazebo)   
     ld.add_action(robots_description)
-    ld.add_action(gazebo) 
+ 
     return ld

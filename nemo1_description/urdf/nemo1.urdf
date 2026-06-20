@@ -10,7 +10,7 @@
   <joint name="fixedFrameToWorld" type="fixed">
     <parent link="world"/>
     <child link="nemo_base_link"/>
-    <origin rpy="0.0 0.0 0.0" xyz="88.8 -0.6 -35.2"/>
+    <origin rpy="0.0 0.0 0.0" xyz="89.8 -0.6 -35.2"/>
   </joint>
 
 

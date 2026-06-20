@@ -109,7 +109,6 @@ def generate_launch_description():
             'use_sim_time': True},
             robot_description,
             robot_description_semantic],
-
     )
 
     ld = LaunchDescription()

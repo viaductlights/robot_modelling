@@ -67,10 +67,6 @@ def generate_launch_description():
         arguments=[
             '-name', 'bean2',
             '-topic', 'bean/robot_description',
-#            '-x', '109.0',
-#            '-y', '1.43',
-#            '-z', '-61',
-#            '-relative_to', 'static_table::table_top',
         ],
         output='screen',
     )
@@ -81,10 +77,6 @@ def generate_launch_description():
         arguments=[
             '-name', 'nemo1',
             '-topic', 'nemo/robot_description',
-            '-x', '1.0',
-            '-y', '0.0',
-            '-z', '0.05',
-            '-relative_to', 'static_table::table_top',
         ],
         output='screen',
     )
