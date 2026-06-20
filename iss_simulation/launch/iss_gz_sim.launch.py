@@ -21,7 +21,7 @@ def generate_launch_description():
             os.path.join(gz_package, 'launch', 'gz_sim.launch.py')
         ),
         launch_arguments={
-            'gz_args': os.path.join(sim_share, 'worlds', 'orbit.sdf'),
+            'gz_args': '-r ' + os.path.join(sim_share, 'worlds', 'orbit.sdf'),
             'use_sim_time':'True'
         }.items(),
     )
