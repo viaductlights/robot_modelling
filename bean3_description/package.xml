@@ -4,7 +4,7 @@
   <name>bean3_description</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="jyzook@todo.todo">jyzook</maintainer>
+  <maintainer email="re25m012@technikum-wien.at">jz</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
