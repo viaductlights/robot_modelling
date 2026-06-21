@@ -5,6 +5,7 @@ from ament_index_python.packages import get_package_share_directory, get_package
 from launch.substitutions import LaunchConfiguration
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, RegisterEventHandler, SetEnvironmentVariable, DeclareLaunchArgument
+from launch.actions import TimerAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -187,7 +188,7 @@ def generate_launch_description():
     bean_joint_state_broadcaster = Node(
         package='controller_manager',
         executable='spawner',
-        arguments=['joint_state_broadcaster', '--controller-manager', '/bean/controller_manager'],
+        arguments=['joint_state_broadcaster', '--controller-manager', '/bean/controller_manager', '--controller-manager-timeout', '60'],
         parameters=[{'use_sim_time':True}],
     )
 
@@ -195,7 +196,7 @@ def generate_launch_description():
     nemo_joint_state_broadcaster = Node(
         package='controller_manager',
         executable='spawner',
-        arguments=['joint_state_broadcaster', '--controller-manager', '/nemo/controller_manager'],
+        arguments=['joint_state_broadcaster', '--controller-manager', '/nemo/controller_manager', '--controller-manager-timeout', '60'],
         parameters=[{'use_sim_time':True}],
     )
 
@@ -203,7 +204,7 @@ def generate_launch_description():
     bean_robot_controller = Node(
             package='controller_manager',
             executable='spawner',
-            arguments=['robot_controller', '--param-file', bean_ros2_controllers_yaml, '--controller-manager', '/bean/controller_manager'],
+            arguments=['robot_controller', '--param-file', bean_ros2_controllers_yaml, '--controller-manager', '/bean/controller_manager', '--controller-manager-timeout', '60'],
             parameters=[{'use_sim_time':True}],
     )
 
@@ -211,7 +212,7 @@ def generate_launch_description():
     nemo_robot_controller = Node(
             package='controller_manager',
             executable='spawner',
-            arguments=['robot_controller', '--param-file', nemo_ros2_controllers_yaml, '--controller-manager', '/nemo/controller_manager'],
+            arguments=['robot_controller', '--param-file', nemo_ros2_controllers_yaml, '--controller-manager', '/nemo/controller_manager', '--controller-manager-timeout', '60'],
             parameters=[{'use_sim_time':True}],
     )
 
@@ -277,10 +278,6 @@ def generate_launch_description():
     # sequencing
     # --------------------
 
-    nemo_spawn_after_bean = RegisterEventHandler(
-        OnProcessExit(target_action=bean_spawn, on_exit=[nemo_spawn])
-    )
-
     # Both robots' controller/move_group startup is chained off nemo_spawn's
     # exit specifically - not bean_spawn's. nemo_spawn only fires after
     # bean_spawn exits, so it's the LAST entity-creation event in the
@@ -292,15 +289,17 @@ def generate_launch_description():
     # rides on, intermittently blowing past controller_manager's 5s
     # switch-controller window. Waiting until both entities exist before
     # starting any controller activation removes that contention.
-    all_followups = RegisterEventHandler(
-        OnProcessExit(
-            target_action=nemo_spawn,
-            on_exit=[
-                bean_joint_state_broadcaster, bean_robot_controller, bean_move_group_node,
-                nemo_joint_state_broadcaster, nemo_robot_controller, nemo_move_group_node,
-            ],
-        )
-    )
+    controller_chain = [
+    RegisterEventHandler(OnProcessExit(
+        target_action=nemo_spawn,
+        on_exit=[TimerAction(period=8.0, actions=[bean_joint_state_broadcaster])])),
+    RegisterEventHandler(OnProcessExit(
+        target_action=bean_joint_state_broadcaster, on_exit=[bean_robot_controller])),
+    RegisterEventHandler(OnProcessExit(
+        target_action=bean_robot_controller,        on_exit=[nemo_joint_state_broadcaster])),
+    RegisterEventHandler(OnProcessExit(
+        target_action=nemo_joint_state_broadcaster, on_exit=[nemo_robot_controller])),
+]
 
     return LaunchDescription([
         rviz_config_arg,
@@ -309,6 +308,8 @@ def generate_launch_description():
         bridge,
         bean_spawn,
         nemo_spawn_after_bean,
-        all_followups,
-        rviz_node
-        ])
+        *controller_chain,
+        bean_move_group_node,
+        nemo_move_group_node,
+        rviz_node,
+    ])
