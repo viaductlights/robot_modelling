@@ -18,14 +18,42 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from builtin_interfaces.msg import Duration
+
 
 # ---- Konfiguration: hier Roboter / Topics anpassen -----------------------
 # ZUM TESTEN VOR DEM PREFIXING (Single-Robot-Demo):
 #   nemo1 -> "joint_states_topic": "/joint_states"
 #   bean2 bleibt dann einfach "offline" - das ist erwartet.
 ROBOT_CONFIG = [
-    {"name": "nemo", "joint_states_topic": "/nemo/joint_states"},
-    {"name": "bean", "joint_states_topic": "/bean/joint_states"},
+    {
+        "name": "nemo",
+        "joint_states_topic": "/nemo/joint_states",
+        "trajectory_topic": "/nemo/robot_controller/joint_trajectory",
+        "home": {
+            "J1": 0.0,
+            "J2": 0.0,
+            "J3": 0.0,
+            "J4": 0.0,
+            "J5": 0.0,
+            "J6": 0.0,
+            "J7": 0.0,
+        },
+    },
+    {
+        "name": "bean",
+        "joint_states_topic": "/bean/joint_states",
+        "trajectory_topic": "/bean/robot_controller/joint_trajectory",
+        "home": {
+            "joint_one": 0.0,
+            "joint_two": 0.0,
+            "joint_three": 0.0,
+            "joint_four": 0.0,
+            "joint_five": 0.0,
+            "joint_six": 0.0,
+        },
+    },
 ]
 STALE_AFTER_SEC = 1.0   # keine neue Nachricht laenger als das -> "offline"
 # --------------------------------------------------------------------------
@@ -36,13 +64,19 @@ class RobotHandle:
     Erweiterungspunkt: hier kommen spaeter die Command-Clients rein
     (pymoveit2 action client, JointTrajectory publisher, ...)."""
 
-    def __init__(self, node: Node, name: str, joint_states_topic: str):
+    def __init__(self, node: Node, name: str, joint_states_topic: str,
+                 trajectory_topic: str, home: dict):
         self.node = node
         self.name = name
-        self.latest_state = None     # zuletzt empfangene JointState-Nachricht
-        self.last_stamp = 0.0        # node-clock Sekunden der letzten Nachricht
+        self.home = home
+        self.latest_state = None
+        self.last_stamp = 0.0
+
         self.sub = node.create_subscription(
             JointState, joint_states_topic, self._on_joint_state, 10)
+
+        self.traj_pub = node.create_publisher(
+            JointTrajectory, trajectory_topic, 10)
 
     def _on_joint_state(self, msg: JointState):
         # laeuft im ROS-Thread - nur Attribute setzen, KEINE Widgets anfassen
@@ -57,8 +91,23 @@ class RobotHandle:
 
     # ---- Platzhalter fuer echte Funktionen (spaeter erweitern) -----------
     def go_home(self):
+        msg = JointTrajectory()
+        msg.header.stamp.sec = 0
+        msg.header.stamp.nanosec = 0
+
+        msg.joint_names = list(self.home.keys())
+
+        point = JointTrajectoryPoint()
+        point.positions = list(self.home.values())
+        point.velocities = [0.0] * len(point.positions)
+        point.time_from_start = Duration(sec=3, nanosec=0)
+
+        msg.points.append(point)
+        self.traj_pub.publish(msg)
+
         self.node.get_logger().info(
-            f"[{self.name}] go_home() - TODO: Ziel an move_group/Controller schicken")
+            f"[{self.name}] Home gesendet: {msg.joint_names} -> {point.positions}"
+    )
 
     def print_state(self):
         if self.latest_state is None:
@@ -76,9 +125,15 @@ class MultiRobotNode(Node):
     def __init__(self):
         super().__init__("hmi")
         self.robots = {
-            cfg["name"]: RobotHandle(self, cfg["name"], cfg["joint_states_topic"])
-            for cfg in ROBOT_CONFIG
-        }
+            cfg["name"]: RobotHandle(
+                self,
+                cfg["name"],
+                cfg["joint_states_topic"],
+                cfg["trajectory_topic"],
+                cfg["home"],
+            )
+    for cfg in ROBOT_CONFIG
+}
         self.get_logger().info(f"GUI-Node gestartet, Roboter: {list(self.robots)}")
 
 
