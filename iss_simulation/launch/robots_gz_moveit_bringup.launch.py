@@ -57,10 +57,13 @@ def generate_launch_description():
     )
     nemo_robot_description = {'robot_description': nemo_robot_description_config.toxml()}
 
-    #---------------------
-    # rviz description config
-    #---------------------
-
+    # rviz2 is a single, unnamespaced node shared by both MotionPlanning
+    # displays - 'robot_description' can only hold one value on it, so
+    # each robot needs a distinctly-named copy here. Each display's
+    # "Robot Description" field in the .rviz file must be set to match
+    # these exact names (e.g. "bean_robot_description" for bean's
+    # display); MoveIt derives the SRDF parameter name automatically by
+    # appending "_semantic" to whatever that field says.
     bean_robot_description_for_rviz = {'bean_robot_description': bean_robot_description_config.toxml()}
     nemo_robot_description_for_rviz = {'nemo_robot_description': nemo_robot_description_config.toxml()}
 
@@ -77,6 +80,21 @@ def generate_launch_description():
     # --------------------
     bean_moveit_config = MoveItConfigsBuilder('bean2', package_name='bean2_moveit').to_moveit_configs()
     nemo_moveit_config = MoveItConfigsBuilder('nemo1', package_name='nemo1_moveit').to_moveit_configs()
+
+    # Same collision as robot_description/robot_description_semantic:
+    # rviz2 is one shared unnamespaced node, so each robot's kinematics
+    # config needs its own distinct key too, matching the "Robot
+    # Description" field set on each MotionPlanning display
+    # (bean_robot_description -> RobotModelLoader looks for
+    # bean_robot_description_kinematics automatically).
+    bean_robot_description_kinematics_for_rviz = {
+        'bean_robot_description_kinematics':
+            bean_moveit_config.robot_description_kinematics['robot_description_kinematics']
+    }
+    nemo_robot_description_kinematics_for_rviz = {
+        'nemo_robot_description_kinematics':
+            nemo_moveit_config.robot_description_kinematics['robot_description_kinematics']
+    }
 
     # --------------------
     # launch args
@@ -169,9 +187,7 @@ def generate_launch_description():
     bean_joint_state_broadcaster = Node(
         package='controller_manager',
         executable='spawner',
-#        arguments=['joint_state_broadcaster', '--controller-manager', '/bean/controller_manager', '--controller-manager-timeout', '10'],
         arguments=['joint_state_broadcaster', '--controller-manager', '/bean/controller_manager'],
-
         parameters=[{'use_sim_time':True}],
     )
 
@@ -187,9 +203,7 @@ def generate_launch_description():
     bean_robot_controller = Node(
             package='controller_manager',
             executable='spawner',
-            arguments=['robot_controller', '--param-file', bean_ros2_controllers_yaml, '--controller-manager', '/bean/controller_manager', '--controller-manager-timeout', '20'],
-            #arguments=['robot_controller', '--param-file', bean_ros2_controllers_yaml, '--controller-manager', '/bean/controller_manager'],
-
+            arguments=['robot_controller', '--param-file', bean_ros2_controllers_yaml, '--controller-manager', '/bean/controller_manager'],
             parameters=[{'use_sim_time':True}],
     )
 
@@ -229,6 +243,18 @@ def generate_launch_description():
         ],
     )
 
+    # -------------------
+    # tf
+    # -------------------
+
+    # Removed: bean_tf / nemo_tf static_transform_publishers.
+    # robot_state_publisher already publishes world->bean_base_link and
+    # world->nemo_base_link on /tf_static (the real ISS-mount offsets
+    # baked into each urdf's fixedFrameToWorld joint). These manual
+    # identity-transform publishers were claiming the same edge on the
+    # same global /tf_static topic with a different value, which is a
+    # direct conflict, not a fallback.
+    
     # --------------------
     # rviz
     # --------------------
@@ -236,12 +262,15 @@ def generate_launch_description():
         package='rviz2',
         executable='rviz2',
         arguments=['-d', LaunchConfiguration('rvizconfig')],
-        parameters=[{'use_sim_time': True},
-                    #bean
-                    bean_robot_description_for_rviz,
-                    bean_robot_description_semantic,
-                    nemo_robot_description_for_rviz,
-                    nemo_robot_description_semantic]
+        parameters=[
+            {'use_sim_time': True},
+            bean_robot_description_for_rviz,
+            bean_robot_description_semantic,
+            bean_robot_description_kinematics_for_rviz,
+            nemo_robot_description_for_rviz,
+            nemo_robot_description_semantic,
+            nemo_robot_description_kinematics_for_rviz,
+        ],
     )
 
     # --------------------
@@ -252,6 +281,17 @@ def generate_launch_description():
         OnProcessExit(target_action=bean_spawn, on_exit=[nemo_spawn])
     )
 
+    # Both robots' controller/move_group startup is chained off nemo_spawn's
+    # exit specifically - not bean_spawn's. nemo_spawn only fires after
+    # bean_spawn exits, so it's the LAST entity-creation event in the
+    # chain. Previously bean_followups fired on bean_spawn's exit, the
+    # same event that triggers nemo_spawn - meaning bean's controllers
+    # tried to activate at the exact moment nemo's (heavy) entity
+    # creation was starting in the same Gazebo process, which can stall
+    # the physics step gz_ros2_control's controller_manager update()
+    # rides on, intermittently blowing past controller_manager's 5s
+    # switch-controller window. Waiting until both entities exist before
+    # starting any controller activation removes that contention.
     all_followups = RegisterEventHandler(
         OnProcessExit(
             target_action=nemo_spawn,
@@ -261,7 +301,6 @@ def generate_launch_description():
             ],
         )
     )
-
 
     return LaunchDescription([
         rviz_config_arg,
