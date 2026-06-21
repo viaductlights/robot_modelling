@@ -229,22 +229,6 @@ def generate_launch_description():
         ],
     )
 
-    # -------------------
-    # tf
-    # -------------------
-
-    bean_tf = Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments=['world', 'bean_base_link']
-    )
-
-    nemo_tf = Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments=['world', 'nemo_base_link']
-    )
-    
     # --------------------
     # rviz
     # --------------------
@@ -268,19 +252,16 @@ def generate_launch_description():
         OnProcessExit(target_action=bean_spawn, on_exit=[nemo_spawn])
     )
 
-    bean_followups = RegisterEventHandler(
+    all_followups = RegisterEventHandler(
         OnProcessExit(
-            target_action=bean_spawn,
-            on_exit=[bean_joint_state_broadcaster, bean_robot_controller, bean_move_group_node],
+            target_action=nemo_spawn,
+            on_exit=[
+                bean_joint_state_broadcaster, bean_robot_controller, bean_move_group_node,
+                nemo_joint_state_broadcaster, nemo_robot_controller, nemo_move_group_node,
+            ],
         )
     )
 
-    nemo_followups = RegisterEventHandler(
-        OnProcessExit(
-            target_action=nemo_spawn,
-            on_exit=[nemo_joint_state_broadcaster, nemo_robot_controller, nemo_move_group_node],
-        )
-    )
 
     return LaunchDescription([
         rviz_config_arg,
@@ -289,9 +270,6 @@ def generate_launch_description():
         bridge,
         bean_spawn,
         nemo_spawn_after_bean,
-        bean_followups,
-        nemo_followups,
-        #bean_tf,
-        #nemo_tf,
+        all_followups,
         rviz_node
         ])
