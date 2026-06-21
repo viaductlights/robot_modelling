@@ -23,8 +23,7 @@ ament_export_dependencies(Eigen3)
 add_executable(sim_task src/sim_task.cpp)
 ament_target_dependencies(sim_task rclcpp moveit_ros_planning_interface geometry_msgs tf2 tf2_ros tf2_geometry_msgs Eigen3)
 
-install(TARGETS
-	RUNTIME DESTINATION bin
+install(TARGETS sim_task
 	DESTINATION lib/${PROJECT_NAME}
 )
 
