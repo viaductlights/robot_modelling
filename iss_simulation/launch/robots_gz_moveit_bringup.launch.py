@@ -168,14 +168,17 @@ def generate_launch_description():
     # --------------------
     # gz ros2 bridge
     # --------------------
- 
+    
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
             # clock gz -> ros2
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
-        ],
+            '/bean/attach@std_msgs/msg/Empty]gz.msgs.Empty',
+            '/bean/detach@std_msgs/msg/Empty]gz.msgs.Empty',
+#            '/nemo/attach@std_msgs/msg/Empty]gz.msgs.Empty',
+            ],
         parameters=[{'use_sim_time':True}],
         output='screen'
     )
