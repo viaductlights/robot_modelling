@@ -1,19 +1,13 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.hpp>
-#include <geometry_msgs/msg/pose.hpp>
+#include <std_msgs/msg/empty.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <fstream>
 #include <sstream>
-// Most rudimentary possible: one namespaced node per robot, each owning
-// a MoveGroupInterface targeting that robot's move_group, three blocking
-// moves in sequence: bean -> pose1, bean -> pose2, nemo -> pose3.
-//
-// NOTE: pose1/pose2/pose3 below are placeholders. Pick values you know
-// are inside each robot's reachable workspace - if planning fails,
-// each robot's SRDF already defines a "home_pose" group_state you can
-// fall back to with setNamedTarget("home_pose") to confirm the
-// MoveGroupInterface connection itself is working before chasing
-// reachability.
+#include <chrono>
+#include <thread>
+
+using namespace std::chrono_literals;
 
 namespace
 {
@@ -26,37 +20,128 @@ std::string readFile(const std::string& path)
 }
 }  // namespace
 
+class TaskCoordinator
+{
+public:
+  using MGI = moveit::planning_interface::MoveGroupInterface;
+
+  TaskCoordinator(rclcpp::Node::SharedPtr bean_node, rclcpp::Node::SharedPtr nemo_node)
+  : bean_node_(bean_node),
+    nemo_node_(nemo_node),
+    logger_(rclcpp::get_logger("task_coordinator")),
+    bean_group_(bean_node_, MGI::Options("robot_bean", "bean_robot_description", "/bean")),
+    nemo_group_(nemo_node_, MGI::Options("robot_nemo", "nemo_robot_description", "/nemo")),
+    bean_attach_pub_(bean_node_->create_publisher<std_msgs::msg::Empty>("/bean/attach", 1)),
+    bean_detach_pub_(bean_node_->create_publisher<std_msgs::msg::Empty>("/bean/detach", 1))
+//    nemo_attach_pub_(nemo_node_->create_publisher<std_msgs::msg::Empty>("/nemo/attach", 1)),
+//    nemo_detach_pub_(nemo_node_->create_pubsliher<std_msgs::msg::Empty>("/nemo/detach", 1)),
+  {
+    bean_group_.setPlanningPipelineId("ompl");
+    nemo_group_.setPlanningPipelineId("ompl");
+    bean_group_.setMaxVelocityScalingFactor(0.8);
+    bean_group_.setMaxAccelerationScalingFactor(0.3);
+    nemo_group_.setMaxVelocityScalingFactor(0.1);
+    nemo_group_.setMaxAccelerationScalingFactor(0.1);
+  }
+
+  void run(){
+
+    // DetachableJoint plugin has no start state. need ensure detachment to prevent microgravity + physics engine drift effects
+    detachCapsuleFromBean();
+      
+    // bean to goal1, then attach capsule
+    RCLCPP_INFO(logger_, "moving Bean to attachment position");
+    bool joint_success1 = moveTo(bean_group_,
+               {0.227, 0.419, 1.344, 2.496, -1.309, -0.750},
+               "bean -> goal1");
+    RCLCPP_INFO(logger_, "status of first pose: %d", joint_success1);
+
+    if (!joint_success1) {
+      RCLCPP_ERROR(logger_, "Failed to reach attachment position. Aborting.");
+      return;
+    }
+
+    RCLCPP_INFO(logger_, "attaching capsule to Bean");
+    attachCapsuleToBean();
+
+        std::this_thread::sleep_for(1s);
+    // bean to goal2 carrying capsule
+    bool joint_success2 = moveTo(bean_group_,
+           {0.20, 0.38, 1.344, 2.496, -1.309, 0.750},
+           "bean -> goal2");
+    RCLCPP_INFO(logger_, "status of second pose: %d", joint_success2);
+/*
+    // nemo to goal3, then transfer capsule from bean to nemo
+    bool joint_success3 = moveTo(nemo_group_,
+               {-0.907, -0.192, -0.174, -2.077, 0.716, 0.628, -0.506},
+               "nemo -> goal3");
+    RCLCPP_INFO(logger_, "status of third pose: %d", joint_success3);*/
+    //{
+     // attachCapsuleToNemo();
+      //detachCapsuleFromBean();
+    //}
+  }
+
+private:
+  bool moveTo(MGI& group, const std::vector<double>& joints, const std::string& label)
+  {
+    if (!group.setJointValueTarget(joints)) {
+      RCLCPP_ERROR(logger_, "%s: joint targets out of bounds or invalid size", label.c_str());
+      return false;
+    }
+    MGI::Plan plan;
+    if (group.plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+      RCLCPP_ERROR(logger_, "%s: planning failed", label.c_str());
+      return false;
+    }
+    if (group.execute(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+      RCLCPP_ERROR(logger_, "%s: execution failed", label.c_str());
+      return false;
+    }
+    RCLCPP_INFO(logger_, "%s: done", label.c_str());
+    return true;
+  }
+
+  void attachCapsuleToBean()
+  {
+    RCLCPP_INFO(logger_, "publishing attach capsule to bean");
+    bean_attach_pub_->publish(std_msgs::msg::Empty{});
+    RCLCPP_INFO(logger_, "Attach message published");
+  }
+
+  void detachCapsuleFromBean()
+  {
+    RCLCPP_INFO(logger_, "publishing detaching capsule from bean");
+    bean_detach_pub_->publish(std_msgs::msg::Empty{});
+    RCLCPP_INFO(logger_, "detach  message published");
+  }
+
+  /*void attachCapsuleToNemo()
+  {
+    RCLCPP_INFO(logger_, "publishing attaching capsule to nemo");
+    nemo_attach_pub_->publish(std_msgs::msg::Empty{});
+  }*/
+
+  // Declared in initialization order - do not reorder without updating the member initializer list accordingly!!
+  rclcpp::Node::SharedPtr bean_node_;
+  rclcpp::Node::SharedPtr nemo_node_;
+  rclcpp::Logger logger_;
+  MGI bean_group_;
+  MGI nemo_group_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr bean_attach_pub_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr bean_detach_pub_;
+  //rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr nemo_attach_pub_;
+};
+
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
 
-  // One namespaced node per robot - MoveGroupInterface's internal
-  // RDFLoader looks for "robot_description"/"robot_description_semantic"
-  // as plain relative names resolved against whatever node it's given.
-  // A genuinely namespaced node resolves these (and everything else)
-  // via normal relative-name resolution, no special-casing needed.
   auto bean_node = rclcpp::Node::make_shared("sim_task_bean", "bean");
   auto nemo_node = rclcpp::Node::make_shared("sim_task_nemo", "nemo");
-  auto logger = rclcpp::get_logger("sim_task");
 
-  // robot_description (the URDF) is covered by robot_state_publisher's
-  // fallback topic at /bean/robot_description and /nemo/robot_description.
-  // robot_description_semantic (the SRDF) has no equivalent fallback
-  // publisher anywhere in the stack - it only ever exists as a parameter,
-  // normally one move_group already has via MoveItConfigsBuilder in the
-  // bringup launch file. sim_task is a separate process started with
-  // `ros2 run`, so it has to load and declare it directly.
-  // robot_description_semantic and robot_description_kinematics are
-  // derived by appending suffixes to whatever robot_description_ is set
-  // to in Options - so using "bean_robot_description" here automatically
-  // resolves to "bean_robot_description_semantic" and
-  // "bean_robot_description_kinematics", matching the names already
-  // declared below. This also breaks RobotModelLoader's process-level
-  // cache collision: both interfaces use group "robot_bean"/"robot_nemo"
-  // now, but if both also used the same parameter name "robot_description"
-  // the cache would key on that string and reuse the first loaded model
-  // for both - confirmed by construction-order swap test. Distinct base
-  // names give distinct cache keys.
+  // All parameter declarations before TaskCoordinator construction -
+  // MoveGroupInterface reads these during its own constructor.
   bean_node->declare_parameter(
       "bean_robot_description",
       readFile(ament_index_cpp::get_package_share_directory("bean3_description") + "/urdf/bean2.urdf"));
@@ -71,101 +156,34 @@ int main(int argc, char** argv)
       "nemo_robot_description_semantic",
       readFile(ament_index_cpp::get_package_share_directory("nemo1_moveit") + "/config/nemo1.srdf"));
 
+  // Kinematics: nested ROS 2 parameters matching each robot's group name.  Declared on both nodes since RobotModelLoader looks on whatever node
+  // Adjust values if kinematics.yaml ever changes!!
   for (auto& node : {bean_node, nemo_node}) {
-    node->declare_parameter("bean_robot_description_kinematics.robot_bean.kinematics_solver",
-                             std::string("kdl_kinematics_plugin/KDLKinematicsPlugin"));
-    node->declare_parameter("bean_robot_description_kinematics.robot_bean.kinematics_solver_search_resolution", 0.005);
-    node->declare_parameter("bean_robot_description_kinematics.robot_bean.kinematics_solver_timeout", 0.005);
-    node->declare_parameter("nemo_robot_description_kinematics.robot_nemo.kinematics_solver",
-                             std::string("kdl_kinematics_plugin/KDLKinematicsPlugin"));
-    node->declare_parameter("nemo_robot_description_kinematics.robot_nemo.kinematics_solver_search_resolution", 0.005);
-    node->declare_parameter("nemo_robot_description_kinematics.robot_nemo.kinematics_solver_timeout", 0.005);
+    node->declare_parameter(
+        "bean_robot_description_kinematics.robot_bean.kinematics_solver",
+        std::string("kdl_kinematics_plugin/KDLKinematicsPlugin"));
+    node->declare_parameter(
+        "bean_robot_description_kinematics.robot_bean.kinematics_solver_search_resolution", 0.005);
+    node->declare_parameter(
+        "bean_robot_description_kinematics.robot_bean.kinematics_solver_timeout", 0.005);
+    node->declare_parameter(
+        "nemo_robot_description_kinematics.robot_nemo.kinematics_solver",
+        std::string("kdl_kinematics_plugin/KDLKinematicsPlugin"));
+    node->declare_parameter(
+        "nemo_robot_description_kinematics.robot_nemo.kinematics_solver_search_resolution", 0.005);
+    node->declare_parameter(
+        "nemo_robot_description_kinematics.robot_nemo.kinematics_solver_timeout", 0.005);
   }
 
-  // MoveGroupInterface needs the nodes spinning concurrently (current
-  // state monitor, action client callbacks) - without this, plan()/
-  // execute() will just hang.
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(bean_node);
   executor.add_node(nemo_node);
   std::thread spinner([&executor]() { executor.spin(); });
 
-  using moveit::planning_interface::MoveGroupInterface;
-
-  // group_name "robot" matches both bean2.srdf and nemo1.srdf.
-  //
-  // Both the namespaced node AND Options::move_group_namespace_ are
-  // needed together, for two different reasons: robot_description/
-  // robot_description_semantic's topic fallbacks genuinely use ordinary
-  // relative-name resolution against the node (so the node itself has
-  // to be namespaced "bean"/"nemo"), but the move_action action client
-  // is built separately from Options::move_group_namespace_ as an
-  // ABSOLUTE path - when that's left empty, it resolves to plain
-  // /move_action regardless of the node's own namespace, not /bean/
-  // move_action. Confirmed via gdb: the action client object existed
-  // and was correctly waiting, just on the wrong (unnamespaced) name.
-  MoveGroupInterface::Options bean_options("robot_bean", "bean_robot_description", "/bean");
-  MoveGroupInterface::Options nemo_options("robot_nemo", "nemo_robot_description", "/nemo");
-  MoveGroupInterface bean_move_group(bean_node, bean_options);
-  MoveGroupInterface nemo_move_group(nemo_node, nemo_options);
-
-  // pilz_industrial_motion_planner is the default pipeline in this
-  // setup (no ompl_planning.yaml is present in either robot's config -
-  // ompl is still available via moveit_configs_utils' bundled generic
-  // default, just not selected by default). Matches manually switching
-  // the pipeline dropdown in RViz's MotionPlanning panel from pilz to
-  // ompl - no specific planner_id set, so each pipeline uses its own
-  // default planner.
-  bean_move_group.setPlanningPipelineId("ompl");
-  nemo_move_group.setPlanningPipelineId("ompl");
-
-  auto plan_and_execute_joint = [&logger](MoveGroupInterface& group, const std::vector<double>& joint_targets, const std::string& label) {
-	group.setMaxVelocityScalingFactor(0.1);
-    	group.setMaxAccelerationScalingFactor(0.1);
-
-    	if (!group.setJointValueTarget(joint_targets)) {
-		RCLCPP_ERROR(logger, "%s: Joint targets out of bounds or invalid size", label.c_str());
-        	return false;
-    	}
-
-    	MoveGroupInterface::Plan plan;
- 
-    	if (group.plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-      		RCLCPP_ERROR(logger, "%s: planning failed", label.c_str());
-      		return false;
-    	}
-   	if (group.execute(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-      		RCLCPP_ERROR(logger, "%s: execution failed", label.c_str());
-      		return false;
-    	}
-
-    	RCLCPP_INFO(logger, "%s: done", label.c_str());
-    	return true;
-  };
-
-
-  const auto& joint_names = nemo_move_group.getJointNames();
-  RCLCPP_INFO(logger, "Group '%s' actually expects %u variables:",
-  nemo_move_group.getName().c_str(), nemo_move_group.getVariableCount());
-  for (size_t i = 0; i < joint_names.size(); ++i) {
-         RCLCPP_INFO(logger, "  Joint [%zu]: %s", i, joint_names[i].c_str());
-  }
-  
-  std::vector<double> my_joint_goals1 = {-0.174, 0.384, 1.309, -1.326, 1.501, -2.25};
-  bool joint_success1 = plan_and_execute_joint(bean_move_group, my_joint_goals1, "Bean moving joints");
-  RCLCPP_INFO(logger, "status: %d", joint_success1);
-
-  std::vector<double> my_joint_goals2 = {-0.506, 0.436, -0.523, -0.733, -0.576, -1.826};
-  bool joint_success2 = plan_and_execute_joint(bean_move_group, my_joint_goals2, "Bean moving joints2");
-  RCLCPP_INFO(logger, "status: %d", joint_success2);
-
-  std::vector<double> my_joint_goals3 = {-0.907, -0.192, -0.174, -2.077, 0.716, 0.628, -0.506};
-//  std::vector<double> my_joint_goals3 = {0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; testing
-  bool joint_success = plan_and_execute_joint(nemo_move_group, my_joint_goals3, "nemo moving joints");
-  RCLCPP_INFO(logger, "status: %d", joint_success);
+  TaskCoordinator coordinator(bean_node, nemo_node);
+  coordinator.run();
 
   rclcpp::shutdown();
   spinner.join();
   return 0;
 }
-
