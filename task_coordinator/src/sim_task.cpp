@@ -4,7 +4,6 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <fstream>
 #include <sstream>
-
 // Most rudimentary possible: one namespaced node per robot, each owning
 // a MoveGroupInterface targeting that robot's move_group, three blocking
 // moves in sequence: bean -> pose1, bean -> pose2, nemo -> pose3.
@@ -47,24 +46,40 @@ int main(int argc, char** argv)
   // normally one move_group already has via MoveItConfigsBuilder in the
   // bringup launch file. sim_task is a separate process started with
   // `ros2 run`, so it has to load and declare it directly.
+  // robot_description_semantic and robot_description_kinematics are
+  // derived by appending suffixes to whatever robot_description_ is set
+  // to in Options - so using "bean_robot_description" here automatically
+  // resolves to "bean_robot_description_semantic" and
+  // "bean_robot_description_kinematics", matching the names already
+  // declared below. This also breaks RobotModelLoader's process-level
+  // cache collision: both interfaces use group "robot_bean"/"robot_nemo"
+  // now, but if both also used the same parameter name "robot_description"
+  // the cache would key on that string and reuse the first loaded model
+  // for both - confirmed by construction-order swap test. Distinct base
+  // names give distinct cache keys.
   bean_node->declare_parameter(
-      "robot_description_semantic",
+      "bean_robot_description",
+      readFile(ament_index_cpp::get_package_share_directory("bean3_description") + "/urdf/bean2.urdf"));
+  nemo_node->declare_parameter(
+      "nemo_robot_description",
+      readFile(ament_index_cpp::get_package_share_directory("nemo1_description") + "/urdf/nemo1.urdf"));
+
+  bean_node->declare_parameter(
+      "bean_robot_description_semantic",
       readFile(ament_index_cpp::get_package_share_directory("bean2_moveit") + "/config/bean2.srdf"));
   nemo_node->declare_parameter(
-      "robot_description_semantic",
+      "nemo_robot_description_semantic",
       readFile(ament_index_cpp::get_package_share_directory("nemo1_moveit") + "/config/nemo1.srdf"));
 
-  // robot_description_kinematics is NOT a single string like the two
-  // above - it has to be actual nested ROS parameters
-  // (robot_description_kinematics.<group>.<key>), since RobotModelLoader
-  // looks up each key individually rather than parsing a blob of YAML
-  // text. Both kinematics.yaml files here are simple/identical, so these
-  // are declared directly; update by hand if kinematics.yaml ever changes.
   for (auto& node : {bean_node, nemo_node}) {
-    node->declare_parameter("robot_description_kinematics.robot.kinematics_solver",
+    node->declare_parameter("bean_robot_description_kinematics.robot_bean.kinematics_solver",
                              std::string("kdl_kinematics_plugin/KDLKinematicsPlugin"));
-    node->declare_parameter("robot_description_kinematics.robot.kinematics_solver_search_resolution", 0.005);
-    node->declare_parameter("robot_description_kinematics.robot.kinematics_solver_timeout", 0.005);
+    node->declare_parameter("bean_robot_description_kinematics.robot_bean.kinematics_solver_search_resolution", 0.005);
+    node->declare_parameter("bean_robot_description_kinematics.robot_bean.kinematics_solver_timeout", 0.005);
+    node->declare_parameter("nemo_robot_description_kinematics.robot_nemo.kinematics_solver",
+                             std::string("kdl_kinematics_plugin/KDLKinematicsPlugin"));
+    node->declare_parameter("nemo_robot_description_kinematics.robot_nemo.kinematics_solver_search_resolution", 0.005);
+    node->declare_parameter("nemo_robot_description_kinematics.robot_nemo.kinematics_solver_timeout", 0.005);
   }
 
   // MoveGroupInterface needs the nodes spinning concurrently (current
@@ -89,8 +104,8 @@ int main(int argc, char** argv)
   // /move_action regardless of the node's own namespace, not /bean/
   // move_action. Confirmed via gdb: the action client object existed
   // and was correctly waiting, just on the wrong (unnamespaced) name.
-  MoveGroupInterface::Options bean_options("robot","robot_description", "/bean");
-  MoveGroupInterface::Options nemo_options("robot", "robot_description", "/nemo");
+  MoveGroupInterface::Options bean_options("robot_bean", "bean_robot_description", "/bean");
+  MoveGroupInterface::Options nemo_options("robot_nemo", "nemo_robot_description", "/nemo");
   MoveGroupInterface bean_move_group(bean_node, bean_options);
   MoveGroupInterface nemo_move_group(nemo_node, nemo_options);
 
@@ -104,42 +119,49 @@ int main(int argc, char** argv)
   bean_move_group.setPlanningPipelineId("ompl");
   nemo_move_group.setPlanningPipelineId("ompl");
 
-  auto plan_and_execute_joint = [&logger](MoveGroupInterface& group, const std::vector<double>& joint_targets,
-                                     const std::string& label) {
-//    group.setPoseTarget(target);
+  auto plan_and_execute_joint = [&logger](MoveGroupInterface& group, const std::vector<double>& joint_targets, const std::string& label) {
+	group.setMaxVelocityScalingFactor(0.1);
+    	group.setMaxAccelerationScalingFactor(0.1);
 
-    if (!group.setJointValueTarget(joint_targets)) {
-	RCLCPP_ERROR(logger, "%s: Joint targets out of bounds or invalid size", label.c_str());
-        return false;
-    }
+    	if (!group.setJointValueTarget(joint_targets)) {
+		RCLCPP_ERROR(logger, "%s: Joint targets out of bounds or invalid size", label.c_str());
+        	return false;
+    	}
 
-    MoveGroupInterface::Plan plan;
+    	MoveGroupInterface::Plan plan;
  
-    if (group.plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-      RCLCPP_ERROR(logger, "%s: planning failed", label.c_str());
-      return false;
-    }
-    if (group.execute(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-      RCLCPP_ERROR(logger, "%s: execution failed", label.c_str());
-      return false;
-    }
+    	if (group.plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+      		RCLCPP_ERROR(logger, "%s: planning failed", label.c_str());
+      		return false;
+    	}
+   	if (group.execute(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+      		RCLCPP_ERROR(logger, "%s: execution failed", label.c_str());
+      		return false;
+    	}
 
-    RCLCPP_INFO(logger, "%s: done", label.c_str());
-    return true;
+    	RCLCPP_INFO(logger, "%s: done", label.c_str());
+    	return true;
   };
 
-/*  geometry_msgs::msg::Pose pose1;
-  pose1.position.x = 1.74; 
-  pose1.position.y = -5.695;
-  pose1.position.z = -1.08;
-  pose1.orientation.x = 0.0;
-  pose1.orientation.y = 0.707;
-  pose1.orientation.z = -0.0;
-  pose1.orientation.w = 0.707;
-  plan_and_execute(bean_move_group, pose1, "bean -> pose1");*/
 
-  std::vector<double> my_joint_goals = {0.22, 0.0, 0.0, 0.0, 0.0, 0.0};
-  bool joint_success = plan_and_execute_joint(bean_move_group, my_joint_goals, "Bean moving joints");
+  const auto& joint_names = nemo_move_group.getJointNames();
+  RCLCPP_INFO(logger, "Group '%s' actually expects %u variables:",
+  nemo_move_group.getName().c_str(), nemo_move_group.getVariableCount());
+  for (size_t i = 0; i < joint_names.size(); ++i) {
+         RCLCPP_INFO(logger, "  Joint [%zu]: %s", i, joint_names[i].c_str());
+  }
+  
+  std::vector<double> my_joint_goals1 = {-0.174, 0.384, 1.309, -1.326, 1.501, -2.25};
+  bool joint_success1 = plan_and_execute_joint(bean_move_group, my_joint_goals1, "Bean moving joints");
+  RCLCPP_INFO(logger, "status: %d", joint_success1);
+
+  std::vector<double> my_joint_goals2 = {-0.506, 0.436, -0.523, -0.733, -0.576, -1.826};
+  bool joint_success2 = plan_and_execute_joint(bean_move_group, my_joint_goals2, "Bean moving joints2");
+  RCLCPP_INFO(logger, "status: %d", joint_success2);
+
+  std::vector<double> my_joint_goals3 = {-0.907, -0.192, -0.174, -2.077, 0.716, 0.628, -0.506};
+//  std::vector<double> my_joint_goals3 = {0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; testing
+  bool joint_success = plan_and_execute_joint(nemo_move_group, my_joint_goals3, "nemo moving joints");
   RCLCPP_INFO(logger, "status: %d", joint_success);
 
   rclcpp::shutdown();
