@@ -4,12 +4,17 @@ Multi-Robot Control GUI
 tkinter + rclpy (ROS2 Jazzy)
 
   - rclpy spins in a background thread, tkinter owns the main thread
-  - "Home" and "Run Task" go through the /<name>/go_home and /<name>/run_task
-    Trigger services (task_coordinator/hmi_motion_server -> MoveIt-planned,
-    collision-checked)
-  - Both buttons are only enabled once their service is available (backend ready)
+  - "Home" goes through /<name>/go_home (Trigger); picking a pose from the
+    first dropdown goes through /<name>/select_pose (named joint target);
+    picking a pose from the second dropdown goes through /<name>/move_to_pose
+    (arbitrary Cartesian target, MoveIt solves IK) - all three are
+    task_coordinator/hmi_motion_server services, MoveIt-planned and
+    collision-checked
+  - Controls are only enabled once their service is available (backend ready)
   - EVERY rclpy call happens on the executor thread (marshalled via a queue)
-  - home_pose comes from the SRDF (single source of truth)
+  - home_pose comes from the SRDF (single source of truth); the other poses
+    are hardcoded server-side (see hmi_motion_server.cpp) - the GUI only
+    sends the chosen name (or, for move_to_pose, a hardcoded test Pose)
 """
 
 import queue
@@ -23,12 +28,49 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
+from geometry_msgs.msg import Pose
+from task_coordinator.srv import SelectPose, MoveToPose
+
+
+def _pose(x, y, z, qx, qy, qz, qw) -> Pose:
+    p = Pose()
+    p.position.x, p.position.y, p.position.z = x, y, z
+    p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w = qx, qy, qz, qw
+    return p
 
 
 # ---- Configuration --------------------------------------------------------
+# "poses" must match the names hmi_motion_server.cpp knows about
+# (kBeanPoses/kNemoPoses). "test_poses" are hardcoded Cartesian targets for
+# the move_to_pose/IK feature - derived from the forward kinematics of an
+# already-verified-reachable joint pose (pose_1), via
+# `ros2 service call /<name>/compute_fk ...`, not guessed XYZ values, so
+# they're known to be reachable. Values are in MoveIt's planning frame
+# ("world" here - this sim places robots at ISS-scale coordinates, tens of
+# meters from the world origin, not in each robot's own base_link frame).
 ROBOT_CONFIG = [
-    {"name": "nemo", "joint_states_topic": "/nemo/joint_states"},
-    {"name": "bean", "joint_states_topic": "/bean/joint_states"},
+    {
+        "name": "nemo",
+        "joint_states_topic": "/nemo/joint_states",
+        "poses": ["pose_1"],
+        "test_poses": {
+            "Test Pose 1": _pose(
+                90.2878776918658, -0.4593858596756446, -33.35982108426537,
+                0.8808892143064816, 0.005274580505267679,
+                0.46589638463297334, -0.08334824356234283),
+        },
+    },
+    {
+        "name": "bean",
+        "joint_states_topic": "/bean/joint_states",
+        "poses": ["pose_1", "pose_2"],
+        "test_poses": {
+            "Test Pose 1": _pose(
+                94.7207851580837, -6.159334235737438, -33.87256215907665,
+                -0.13143097974709886, 0.7688423246950394,
+                -0.21001137463211458, 0.5894935112835216),
+        },
+    },
 ]
 STALE_AFTER_SEC = 1.0   # no new JointState message for longer than this -> "offline"
 ROS_TICK_SEC = 0.1      # ROS timer: refresh readiness + drain the queue
@@ -39,21 +81,27 @@ class RobotHandle:
     """Encapsulates everything for ONE robot. rclpy objects are only
     touched by the ROS thread; the GUI only reads cached attributes."""
 
-    def __init__(self, node: Node, name: str, joint_states_topic: str):
+    def __init__(
+            self, node: Node, name: str, joint_states_topic: str,
+            poses: list, test_poses: dict):
         self.node = node
         self.name = name
+        self.poses = poses
+        self.test_poses = test_poses
 
         self.latest_state = None
         self.last_stamp = 0.0
 
         self._planner_ready = False              # ROS thread writes, GUI thread reads
-        self.last_home_result = None             # (success|None, message) | None
-        self.last_task_result = None             # (success|None, message) | None
+        self.last_home_result = None              # (success|None, message) | None
+        self.last_select_pose_result = None       # (success|None, message) | None
+        self.last_move_to_pose_result = None      # (success|None, message) | None
 
         self.sub = node.create_subscription(
             JointState, joint_states_topic, self._on_joint_state, 10)
         self.home_client = node.create_client(Trigger, f"/{name}/go_home")
-        self.task_client = node.create_client(Trigger, f"/{name}/run_task")
+        self.select_pose_client = node.create_client(SelectPose, f"/{name}/select_pose")
+        self.move_to_pose_client = node.create_client(MoveToPose, f"/{name}/move_to_pose")
 
     # ---- ROS thread --------------------------------------------------------
     def _on_joint_state(self, msg: JointState):
@@ -63,7 +111,8 @@ class RobotHandle:
     def refresh_readiness(self):
         self._planner_ready = (
             self.home_client.service_is_ready()
-            and self.task_client.service_is_ready())
+            and self.select_pose_client.service_is_ready()
+            and self.move_to_pose_client.service_is_ready())
 
     # ---- GUI thread (only reads cached values) -----------------------------
     def is_online(self) -> bool:
@@ -92,7 +141,9 @@ class MultiRobotNode(Node):
     def __init__(self):
         super().__init__("hmi")
         self.robots = {
-            cfg["name"]: RobotHandle(self, cfg["name"], cfg["joint_states_topic"])
+            cfg["name"]: RobotHandle(
+                self, cfg["name"], cfg["joint_states_topic"],
+                cfg["poses"], cfg["test_poses"])
             for cfg in ROBOT_CONFIG
         }
         self._cmd_queue = queue.Queue()
@@ -101,10 +152,13 @@ class MultiRobotNode(Node):
 
     # ---- called from the GUI (queue only, thread-safe) --------------------
     def request_go_home(self, name: str):
-        self._cmd_queue.put(("home", name))
+        self._cmd_queue.put(("home", name, None))
 
-    def request_run_task(self, name: str):
-        self._cmd_queue.put(("task", name))
+    def request_select_pose(self, name: str, pose_name: str):
+        self._cmd_queue.put(("select_pose", name, pose_name))
+
+    def request_move_to_pose(self, name: str, test_pose_name: str):
+        self._cmd_queue.put(("move_to_pose", name, test_pose_name))
 
     # ---- ROS thread --------------------------------------------------------
     def _ros_tick(self):
@@ -115,25 +169,34 @@ class MultiRobotNode(Node):
     def _drain_commands(self):
         while True:
             try:
-                action, name = self._cmd_queue.get_nowait()
+                action, name, choice = self._cmd_queue.get_nowait()
             except queue.Empty:
                 break
             handle = self.robots.get(name)
             if handle is None:
                 continue
-            client = handle.home_client if action == "home" else handle.task_client
             if not handle.planner_ready():
                 self._set_result(handle, action, (False, "Planner not ready"))
                 continue
             self._set_result(handle, action, (None, "running..."))
-            future = client.call_async(Trigger.Request())
+            if action == "home":
+                client, request = handle.home_client, Trigger.Request()
+            elif action == "select_pose":
+                client = handle.select_pose_client
+                request = SelectPose.Request(pose_name=choice)
+            else:  # move_to_pose
+                client = handle.move_to_pose_client
+                request = MoveToPose.Request(target=handle.test_poses[choice])
+            future = client.call_async(request)
             future.add_done_callback(partial(self._on_command_done, handle, action))
 
     def _set_result(self, handle: RobotHandle, action: str, result):
         if action == "home":
             handle.last_home_result = result
+        elif action == "select_pose":
+            handle.last_select_pose_result = result
         else:
-            handle.last_task_result = result
+            handle.last_move_to_pose_result = result
 
     def _on_command_done(self, handle: RobotHandle, action: str, future):
         try:
@@ -171,16 +234,40 @@ class RobotPanel(ttk.LabelFrame):
             command=lambda: handle.node.request_go_home(handle.name),
             state="disabled")
         self.home_btn.pack(side="left", padx=2)
-        self.task_btn = ttk.Button(
-            btns, text="Run Task",
-            command=lambda: handle.node.request_run_task(handle.name),
+
+        pose_row = ttk.Frame(self)
+        pose_row.pack(anchor="w", pady=(4, 0))
+        self.pose_combo = ttk.Combobox(
+            pose_row, values=handle.poses, state="disabled", width=14)
+        self.pose_combo.current(0)
+        self.pose_combo.pack(side="left", padx=2)
+        self.select_pose_btn = ttk.Button(
+            pose_row, text="Go",
+            command=lambda: handle.node.request_select_pose(
+                handle.name, self.pose_combo.get()),
             state="disabled")
-        self.task_btn.pack(side="left", padx=2)
+        self.select_pose_btn.pack(side="left", padx=2)
+
+        test_pose_row = ttk.Frame(self)
+        test_pose_row.pack(anchor="w", pady=(4, 0))
+        self.test_pose_combo = ttk.Combobox(
+            test_pose_row, values=list(handle.test_poses.keys()),
+            state="disabled", width=14)
+        self.test_pose_combo.current(0)
+        self.test_pose_combo.pack(side="left", padx=2)
+        self.move_to_pose_btn = ttk.Button(
+            test_pose_row, text="Move To Pose",
+            command=lambda: handle.node.request_move_to_pose(
+                handle.name, self.test_pose_combo.get()),
+            state="disabled")
+        self.move_to_pose_btn.pack(side="left", padx=2)
 
         self.result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
         self.result.pack(anchor="w")
-        self.task_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
-        self.task_result.pack(anchor="w")
+        self.select_pose_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
+        self.select_pose_result.pack(anchor="w")
+        self.move_to_pose_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
+        self.move_to_pose_result.pack(anchor="w")
 
     def refresh(self):
         online = self.handle.is_online()
@@ -190,26 +277,19 @@ class RobotPanel(ttk.LabelFrame):
 
         ready = self.handle.planner_ready()
         self.planner_status.config(
-            text="Planner: ready" if ready else "Planner: waiting for go_home service...",
+            text="Planner: ready" if ready else "Planner: waiting for backend services...",
             fg="#27ae60" if ready else "#c0392b")
         self.home_btn.config(state="normal" if ready else "disabled")
-        self.task_btn.config(state="normal" if ready else "disabled")
+        self.pose_combo.config(state="readonly" if ready else "disabled")
+        self.select_pose_btn.config(state="normal" if ready else "disabled")
+        self.test_pose_combo.config(state="readonly" if ready else "disabled")
+        self.move_to_pose_btn.config(state="normal" if ready else "disabled")
 
-        res = self.handle.last_home_result
-        if res is None:
-            self.result.config(text="")
-        else:
-            ok, msg = res
-            color = "#555" if ok is None else ("#27ae60" if ok else "#c0392b")
-            self.result.config(text=f"Home: {msg}", fg=color)
-
-        task_res = self.handle.last_task_result
-        if task_res is None:
-            self.task_result.config(text="")
-        else:
-            ok, msg = task_res
-            color = "#555" if ok is None else ("#27ae60" if ok else "#c0392b")
-            self.task_result.config(text=f"Task: {msg}", fg=color)
+        self._update_result_label(self.result, "Home", self.handle.last_home_result)
+        self._update_result_label(
+            self.select_pose_result, "Pose", self.handle.last_select_pose_result)
+        self._update_result_label(
+            self.move_to_pose_result, "Move To Pose", self.handle.last_move_to_pose_result)
 
         self.joints.config(state="normal")
         self.joints.delete("1.0", "end")
@@ -220,6 +300,15 @@ class RobotPanel(ttk.LabelFrame):
             for n, p in zip(st.name, st.position):
                 self.joints.insert("end", f"{n:<24}{p:+.4f}\n")
         self.joints.config(state="disabled")
+
+    @staticmethod
+    def _update_result_label(label: tk.Label, prefix: str, result):
+        if result is None:
+            label.config(text="")
+            return
+        ok, msg = result
+        color = "#555" if ok is None else ("#27ae60" if ok else "#c0392b")
+        label.config(text=f"{prefix}: {msg}", fg=color)
 
 
 class App:

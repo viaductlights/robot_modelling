@@ -18,16 +18,26 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 include_directories(include ${EIGEN3_INCLUDE_DIRS})
 ament_export_dependencies(eigen3_cmake_module)
 ament_export_dependencies(Eigen3)
 
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/SelectPose.srv"
+  "srv/MoveToPose.srv"
+  DEPENDENCIES geometry_msgs
+)
+
 add_executable(sim_task src/sim_task.cpp)
 ament_target_dependencies(sim_task rclcpp moveit_ros_planning_interface geometry_msgs tf2 tf2_ros tf2_geometry_msgs Eigen3)
 
 add_executable(hmi_motion_server src/hmi_motion_server.cpp src/arm_setup.cpp)
-ament_target_dependencies(hmi_motion_server rclcpp std_srvs moveit_ros_planning_interface ament_index_cpp)
+ament_target_dependencies(hmi_motion_server rclcpp std_srvs moveit_ros_planning_interface ament_index_cpp geometry_msgs)
+
+rosidl_get_typesupport_target(task_coordinator_typesupport_cpp ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(hmi_motion_server "${task_coordinator_typesupport_cpp}")
 
 install(TARGETS sim_task hmi_motion_server
 	DESTINATION lib/${PROJECT_NAME}

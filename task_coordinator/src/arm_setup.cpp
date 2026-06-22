@@ -28,7 +28,19 @@ rclcpp::Node::SharedPtr makeArmNode(
   const std::string & srdf_rel_path,
   const std::string & group_name)
 {
-  auto node = rclcpp::Node::make_shared(node_name, robot_ns);
+  // use_sim_time has to be set via NodeOptions at construction time, not
+  // declared after the fact - rclcpp::Node's constructor checks it right
+  // away to decide whether to wire up an internal /clock subscription.
+  // Without it, this node's own clock stays on wall time even though the
+  // rest of the system (move_group, joint_states, ...) runs on sim time,
+  // which silently breaks any client-side "current state" fetch (e.g.
+  // MoveGroupInterface::getCurrentPose()) - it compares a wall-time "now"
+  // against sim-timestamped messages and always finds them "too old".
+  // plan()/execute() are unaffected since those are forwarded as RPCs to
+  // the move_group action server, which already has correct sim time.
+  rclcpp::NodeOptions options;
+  options.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
+  auto node = rclcpp::Node::make_shared(node_name, robot_ns, options);
 
   const std::string description_base = robot_ns + "_robot_description";
 
