@@ -1,7 +1,27 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="capsule">
-    <pose>72.83 -2.64 -37.15 0 0 -1.44</pose>
+	  <pose>82.37 -9.64 -39.14 0.02 0.05 -1.55</pose>
+	  <!--target link for docking -->
+	  <link name="docking_target">
+		  <pose>0 0 0 0 0 0</pose>
+
+		  <inertial>
+		    <mass>0.001</mass>
+		    <inertia>
+			<ixx>1e-6</ixx>
+			<iyy>1e-6</iyy>
+			<izz>1e-6</izz>
+			<ixy>0</ixy>
+			<ixz>0</ixz>
+			<iyz>0</iyz>
+		    </inertia>
+	    </inertial>
+    </link>
+    <joint name="docking_target_joint" type="fixed">
+	    <parent>body</parent>
+	    <child>docking_target</child>
+    </joint>
     <link name="body">
       <collision name="capsule_collision">
         <geometry>

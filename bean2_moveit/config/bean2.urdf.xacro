@@ -19,7 +19,15 @@
 		    <namespace>bean</namespace>
 	    </ros>
 	    <parameters>$(find bean2_moveit)/config/ros2_controllers.yaml</parameters>
-	    </plugin>
+    <!-- detachable joint plugin -->
+	    <plugin filename="gz-sim-detachable-joint-system"
+      		    name="gz::sim::systems::DetachableJoint">
+    		<parent_link>docking_frame</parent_link>
+    		<child_model>capsule</child_model>
+    		<child_link>docking_target</child_link>
+    		<detach_topic>/bean/detach</detach_topic>
+    		<attach_topic>/bean/attach</attach_topic>
+    		<output_topic>/bean/state</output_topic>
+  	  </plugin>
     </gazebo>
-
 </robot>
