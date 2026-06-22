@@ -14,14 +14,11 @@
 ### together, in rviz and gz, w/ moveit  
 `ros2 launch iss_simulation iss_moveit_gz_sim.launch.py`  
 
+### sim task, after ^ launch  
+`ros2 run task_coordinator sim_task"
+
 #### note  
-need to manually set bean's controllers when switching from nemo to bean (and possibly vice versa) with moveit  
-
-check controller status:  
-`ros2 control list_controllers --controller-manager /bean/controller_manager`  
-
-set robot_controller or joint_state_broadcaster as needed:  
-`ros2 control set_controller_state robot_controller active --controller-manager /bean/controller_manager`  
+need to write single launchfile for sim!  
 
 ### HMI + motion server, w/ moveit
 build custom interfaces + backend + HMI:  
@@ -52,5 +49,6 @@ their own robot's other calls.
 `gz service -s /world/orbit/set_physics --reqtype gz.msgs.Physics --reptype gz.msgs.Boolean --req 'max_step_size: 0.01, real_time_factor: 0'`  
 
 ## in progress:  
-phase 0 of sim  
-
+- combined launchfile  
+- pose2 (bean), pose3+ (nemo)  
+- presentation
