@@ -1,27 +1,27 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
-  <model name="capsule">
+	<model name="capsule">
 	  <pose>82.37 -9.64 -39.14 0.02 0.05 -1.55</pose>
 	  <!--target link for docking -->
 	  <link name="docking_target">
 		  <pose>0 0 0 0 0 0</pose>
 
 		  <inertial>
-		    <mass>0.001</mass>
+		    <mass>4.0</mass>
 		    <inertia>
-			<ixx>1e-6</ixx>
-			<iyy>1e-6</iyy>
-			<izz>1e-6</izz>
+			<ixx>0.5</ixx>
+			<iyy>0.5</iyy>
+			<izz>1.0</izz>
 			<ixy>0</ixy>
 			<ixz>0</ixz>
 			<iyz>0</iyz>
 		    </inertia>
-	    </inertial>
-    </link>
+		  </inertial>
+		  </link>
     <joint name="docking_target_joint" type="fixed">
 	    <parent>body</parent>
 	    <child>docking_target</child>
-    </joint>
+	  </joint>
     <link name="body">
       <collision name="capsule_collision">
         <geometry>
@@ -32,14 +32,14 @@
         </geometry>
       </collision>
       <inertial>
-        <mass>800</mass>
+        <mass>400</mass>
         <inertia>
-          <ixx>1000</ixx>
+          <ixx>500</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>1000</iyy>
+          <iyy>500</iyy>
           <iyz>0</iyz>
-          <izz>1000</izz>
+          <izz>500</izz>
         </inertia>
       </inertial>
       <visual name="capsule_visual">
@@ -79,99 +79,12 @@
             <stddev>0.01</stddev>
           </noise>
         </ray>
-      </sensor>
+</sensor>
+<velocity_decay>
+    <linear>0.02</linear>
+    <angular>0.02</angular>
+  </velocity_decay>
     </link>
-
-    <!-- This thruster system is a simplification to how real reaction control systems (RCS) work -->
-    <link name="push_thruster">
-      <pose>0 0 0 1.57 0 0</pose>
-    </link>
-
-    <link name="pitch_thruster">
-      <pose>1 0 0 1.57 0 0</pose>
-    </link>
-
-    <link name="yaw_thruster">
-      <pose>0 0 1 1.57 0 0</pose>
-    </link>
-
-    <joint name="push_thruster_joint" type="revolute">
-      <parent>body</parent>
-      <child>push_thruster</child>
-      <axis>
-        <xyz>0 0 -1</xyz>
-        <limit>
-          <lower>-1e+12</lower>
-          <upper>1e+12</upper>
-          <effort>1e6</effort>
-          <velocity>100</velocity>
-        </limit>
-      </axis>
-    </joint>
-
-    <plugin
-      filename="gz-sim-thruster-system"
-      name="gz::sim::systems::Thruster">
-      <joint_name>push_thruster_joint</joint_name>
-      <thrust_coefficient>0.004</thrust_coefficient>
-      <!-- Fake fluid density to get thruster to move capsule -->
-      <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.2</propeller_diameter>
-      <max_thrust_cmd>300</max_thrust_cmd>
-      <min_thrust_cmd>0</min_thrust_cmd>
-    </plugin>
-
-    <joint name="pitch_thruster_joint" type="revolute">
-      <parent>body</parent>
-      <child>pitch_thruster</child>
-      <axis>
-        <xyz>0 0 -1</xyz>
-        <limit>
-          <lower>-1e+12</lower>
-          <upper>1e+12</upper>
-          <effort>1e6</effort>
-          <velocity>100</velocity>
-        </limit>
-      </axis>
-    </joint>
-
-    <plugin
-      filename="gz-sim-thruster-system"
-      name="gz::sim::systems::Thruster">
-      <joint_name>pitch_thruster_joint</joint_name>
-      <thrust_coefficient>0.004</thrust_coefficient>
-      <!-- Fake fluid density to get thruster to move capsule -->
-      <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.2</propeller_diameter>
-      <max_thrust_cmd>300</max_thrust_cmd>
-      <min_thrust_cmd>0</min_thrust_cmd>
-    </plugin>
-
-    <joint name="yaw_thruster_joint" type="revolute">
-      <parent>body</parent>
-      <child>yaw_thruster</child>
-      <axis>
-        <xyz>0 0 -1</xyz>
-        <limit>
-          <lower>-1e+12</lower>
-          <upper>1e+12</upper>
-          <effort>1e6</effort>
-          <velocity>100</velocity>
-        </limit>
-      </axis>
-    </joint>
-
-    <plugin
-      filename="gz-sim-thruster-system"
-      name="gz::sim::systems::Thruster">
-      <joint_name>yaw_thruster_joint</joint_name>
-      <thrust_coefficient>0.004</thrust_coefficient>
-      <!-- Fake fluid density to get thruster to move capsule -->
-      <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.2</propeller_diameter>
-      <max_thrust_cmd>300</max_thrust_cmd>
-      <min_thrust_cmd>0</min_thrust_cmd>
-    </plugin>
 
   </model>
 </sdf>
