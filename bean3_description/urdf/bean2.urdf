@@ -450,4 +450,7 @@
 	  <child link="docking_frame"/>
 	  <origin xyz="0.0 0.0 -0.333" rpy ="0.0 0.0 0.0"/>
   </joint>
+  <gazebo reference="docking_joint">
+	  <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
 </robot>
