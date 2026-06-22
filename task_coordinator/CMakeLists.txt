@@ -8,12 +8,14 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
 
@@ -24,7 +26,10 @@ ament_export_dependencies(Eigen3)
 add_executable(sim_task src/sim_task.cpp)
 ament_target_dependencies(sim_task rclcpp moveit_ros_planning_interface geometry_msgs tf2 tf2_ros tf2_geometry_msgs Eigen3)
 
-install(TARGETS sim_task
+add_executable(hmi_motion_server src/hmi_motion_server.cpp src/arm_setup.cpp)
+ament_target_dependencies(hmi_motion_server rclcpp std_srvs moveit_ros_planning_interface ament_index_cpp)
+
+install(TARGETS sim_task hmi_motion_server
 	DESTINATION lib/${PROJECT_NAME}
 )
 
