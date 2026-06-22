@@ -19,6 +19,7 @@
 		    <namespace>bean</namespace>
 	    </ros>
 	    <parameters>$(find bean2_moveit)/config/ros2_controllers.yaml</parameters>
+    </plugin>
     <!-- detachable joint plugin -->
 	    <plugin filename="gz-sim-detachable-joint-system"
       		    name="gz::sim::systems::DetachableJoint">

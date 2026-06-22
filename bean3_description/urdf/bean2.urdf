@@ -445,9 +445,9 @@
              izz="1e-9"/>
   </inertial>
 </link>
-  <joint name="docking_frame" type="fixed">
+  <joint name="docking_joint" type="fixed">
 	  <parent link="link_six"/>
-	  <child link="docking_link"/>
+	  <child link="docking_frame"/>
 	  <origin xyz="0.0 0.0 -0.333" rpy ="0.0 0.0 0.0"/>
   </joint>
 </robot>
