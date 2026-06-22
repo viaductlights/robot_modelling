@@ -23,6 +23,34 @@ check controller status:
 set robot_controller or joint_state_broadcaster as needed:  
 `ros2 control set_controller_state robot_controller active --controller-manager /bean/controller_manager`  
 
+### HMI + motion server, w/ moveit
+build custom interfaces + backend + HMI:  
+`colcon build --packages-select task_coordinator hmi`  
+
+after the moveit bringup above is running, start the backend:  
+`ros2 run task_coordinator hmi_motion_server`  
+
+then launch the HMI:  
+`ros2 run hmi hmi`  
+
+#### services exposed by hmi_motion_server
+- `/bean/go_home`, `/nemo/go_home` (`std_srvs/Trigger`)  
+- `/bean/select_pose`, `/nemo/select_pose` (`task_coordinator/SelectPose`) - moves directly to a named hardcoded pose  
+- `/bean/move_to_pose`, `/nemo/move_to_pose` (`task_coordinator/MoveToPose`) - arbitrary Cartesian target, planned via MoveIt IK  
+
+call them directly for testing, e.g.:  
+`ros2 service call /bean/select_pose task_coordinator/srv/SelectPose "{pose_name: pose_1}"`  
+`ros2 service call /bean/go_home std_srvs/srv/Trigger`  
+
+#### note
+bean and nemo run on separate MoveIt callback groups, so go_home/select_pose/move_to_pose
+for one robot can run concurrently with the other - they only serialize against
+their own robot's other calls.  
+
+#### speeding up sim for testing
+
+`gz service -s /world/orbit/set_physics --reqtype gz.msgs.Physics --reptype gz.msgs.Boolean --req 'max_step_size: 0.01, real_time_factor: 0'`  
+
 ## in progress:  
 phase 0 of sim  
 
