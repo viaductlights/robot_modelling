@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="capsule">
-    <pose>78.83 -2.64 -37.15 0 0 -1.44</pose>
+    <pose>72.83 -2.64 -37.15 0 0 -1.44</pose>
     <link name="body">
       <collision name="capsule_collision">
         <geometry>
