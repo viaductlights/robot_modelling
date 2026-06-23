@@ -63,6 +63,8 @@ bash src/robot_modelling/task_coordinator/scripts/run_sim_task.sh
 Gazebo/`move_group`/rviz are left running after `sim_task` finishes so you
 can inspect the result; rerun the script for a clean restart.
 
+**note:** velocity and acceleration scaling values are currently set to 0.1 to ensure a proper run. please manually change the values in sim_task.cpp for faster sim times if desired.  
+
 ## working spawns:  
 
 ### individually, in rviz, w/o moveit: 
