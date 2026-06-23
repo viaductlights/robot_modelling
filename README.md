@@ -1,3 +1,48 @@
+## first-time setup
+
+Prerequisites: ROS 2 Jazzy, MoveIt 2, and Gazebo (Harmonic) already installed
+and sourced (e.g. in your `~/.bashrc`).
+
+1. Clone this repo into the `src/` folder of a colcon workspace:
+   ```
+   mkdir -p ~/<WORKSPACE_NAME>/src
+   cd ~/<WORKSPACE_NAME>/src
+   git clone https://github.com/viaductlights/robot_modelling.git
+   ```
+2. Build the whole workspace from the workspace root (not from inside this
+   repo):
+   ```
+   cd ~/<WORKSPACE_NAME>
+   colcon build
+   ```
+3. Source the workspace:
+   ```
+   source install/setup.bash
+   ```
+4. Bring everything up with the bringup script (see below), or use the
+   individual launch commands further down this file.
+
+## bringup script
+
+`task_coordinator/scripts/bringup.sh` automates the kill-and-restart routine
+used throughout development: it kills any leftover sim/`move_group`/
+`hmi_motion_server`/HMI processes from a previous run, launches
+`iss_moveit_gz_sim.launch.py` (Gazebo + both move_groups + rviz), detaches
+the capsule from bean before anything can move (the `DetachableJoint`
+plugin has no "start detached" option - it auto-attaches at world load),
+waits for both robot controllers to come up, then starts
+`hmi_motion_server` and the HMI GUI.
+
+Run it from anywhere (it auto-detects the workspace root from its own
+location):
+```
+bash src/robot_modelling/task_coordinator/scripts/bringup.sh
+```
+
+It logs each component to `/tmp/sim_bringup_<timestamp>.log`,
+`/tmp/hmi_motion_server_<timestamp>.log`, and `/tmp/hmi_gui_<timestamp>.log`,
+and prints the log paths plus a final status line once everything is ready.
+
 ## working spawns:  
 
 ### individually, in rviz, w/o moveit: 
@@ -47,8 +92,3 @@ their own robot's other calls.
 #### speeding up sim for testing
 
 `gz service -s /world/orbit/set_physics --reqtype gz.msgs.Physics --reptype gz.msgs.Boolean --req 'max_step_size: 0.01, real_time_factor: 0'`  
-
-## in progress:  
-- combined launchfile  
-- pose2 (bean), pose3+ (nemo)  
-- presentation

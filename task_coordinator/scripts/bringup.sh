@@ -6,7 +6,12 @@
 # auto-attaches at world load), then starts hmi_motion_server and the HMI GUI.
 set -o pipefail
 
-WS_DIR="${WS_DIR:-/home/nemanja/robm_ws}"
+# Defaults to the colcon workspace root this script lives under
+# (.../<ws>/src/robot_modelling/task_coordinator/scripts/bringup.sh -> <ws>),
+# so it works regardless of where the workspace is checked out. Override with
+# WS_DIR=... if your workspace root isn't 4 levels up from this script.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WS_DIR="${WS_DIR:-$(cd "${SCRIPT_DIR}/../../../.." && pwd)}"
 LOG_DIR="${LOG_DIR:-/tmp}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 SIM_LOG="${LOG_DIR}/sim_bringup_${STAMP}.log"
