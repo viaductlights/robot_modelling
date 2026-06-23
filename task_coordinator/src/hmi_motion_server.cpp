@@ -62,11 +62,11 @@ bool goPoseTarget(
 // targets (placeholders - known to be inside each robot's workspace).
 // Selecting one moves there directly - no chaining between poses.
 const std::map<std::string, std::vector<double>> kBeanPoses = {
-  {"pose_1", {-0.174, 0.384, 1.309, -1.326, 1.501, -2.25}},
-  {"pose_2", {-0.506, 0.436, -0.523, -0.733, -0.576, -1.826}},
+  {"pose_1", {0.227, 0.419, 1.344, 2.496, -1.309, -0.750}},
+  {"pose_2", {-0.87, 1.45, 1.065, 1.326, -5.39, 2.28}},
 };
 const std::map<std::string, std::vector<double>> kNemoPoses = {
-  {"pose_1", {-0.907, -0.192, -0.174, -2.077, 0.716, 0.628, -0.506}},
+  {"pose_1", {1.29, 1.45, -0.52, 0.87, 0.14, 1.82, -1.71}},
 };
 
 bool selectNamedPose(
