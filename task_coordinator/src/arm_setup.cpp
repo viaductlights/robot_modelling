@@ -3,7 +3,9 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 #include <fstream>
+#include <cmath>
 #include <sstream>
+#include <vector>
 
 namespace
 {
@@ -154,5 +156,108 @@ bool planAndExecute(
   RCLCPP_INFO(logger, "%s: done", label.c_str());
   return true;
 }
+
+namespace
+{
+void rotateVectorByQuaternion(
+  double vx,
+  double vy,
+  double vz,
+  const geometry_msgs::msg::Quaternion & q_msg,
+  double & ox,
+  double & oy,
+  double & oz)
+{
+  double x = q_msg.x;
+  double y = q_msg.y;
+  double z = q_msg.z;
+  double w = q_msg.w;
+
+  const double norm = std::sqrt(x * x + y * y + z * z + w * w);
+  if (norm > 1e-12) {
+    x /= norm;
+    y /= norm;
+    z /= norm;
+    w /= norm;
+  } else {
+    ox = vx;
+    oy = vy;
+    oz = vz;
+    return;
+  }
+
+  // Rotation matrix for q * v * q^-1.
+  ox = (1.0 - 2.0 * (y * y + z * z)) * vx +
+       (2.0 * (x * y - z * w)) * vy +
+       (2.0 * (x * z + y * w)) * vz;
+  oy = (2.0 * (x * y + z * w)) * vx +
+       (1.0 - 2.0 * (x * x + z * z)) * vy +
+       (2.0 * (y * z - x * w)) * vz;
+  oz = (2.0 * (x * z - y * w)) * vx +
+       (2.0 * (y * z + x * w)) * vy +
+       (1.0 - 2.0 * (x * x + y * y)) * vz;
+}
+}  // namespace
+
+bool jogCartesian(
+  moveit::planning_interface::MoveGroupInterface & group,
+  const rclcpp::Logger & logger,
+  const std::string & label,
+  double dx,
+  double dy,
+  double dz,
+  bool in_tool_frame,
+  std::string * error_out)
+{
+  geometry_msgs::msg::Pose target = group.getCurrentPose().pose;
+
+  double wx = dx;
+  double wy = dy;
+  double wz = dz;
+  if (in_tool_frame) {
+    rotateVectorByQuaternion(dx, dy, dz, target.orientation, wx, wy, wz);
+  }
+
+  target.position.x += wx;
+  target.position.y += wy;
+  target.position.z += wz;
+
+  std::vector<geometry_msgs::msg::Pose> waypoints;
+  waypoints.push_back(target);
+
+  moveit_msgs::msg::RobotTrajectory trajectory;
+  moveit_msgs::msg::MoveItErrorCodes cart_error;
+  const double kJogEefStep = 0.001;  // 1 mm IK/collision-check resolution.
+
+  const double fraction = group.computeCartesianPath(
+    waypoints, kJogEefStep, trajectory, true, &cart_error);
+
+  if (fraction < 0.999) {
+    const std::string reason = (fraction < 0.0)
+      ? describeMoveItError(cart_error)
+      : "only " + std::to_string(static_cast<int>(fraction * 100.0)) +
+        "% of the jog step was reachable";
+    RCLCPP_ERROR(logger, "%s: Cartesian path failed - %s", label.c_str(), reason.c_str());
+    if (error_out) {
+      *error_out = "jog failed: " + reason;
+    }
+    return false;
+  }
+
+  auto exec_result = group.execute(trajectory);
+  if (exec_result != moveit::core::MoveItErrorCode::SUCCESS) {
+    std::string reason = describeMoveItError(exec_result);
+    RCLCPP_ERROR(logger, "%s: execution failed - %s", label.c_str(), reason.c_str());
+    if (error_out) {
+      *error_out = "execution failed: " + reason;
+    }
+    return false;
+  }
+
+  RCLCPP_INFO(
+    logger, "%s: done (%s frame)", label.c_str(), in_tool_frame ? "tool" : "world");
+  return true;
+}
+
 
 }  // namespace task_coordinator

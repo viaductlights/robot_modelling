@@ -35,7 +35,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import Pose
-from task_coordinator.srv import SelectPose, MoveToPose
+from task_coordinator.srv import SelectPose, MoveToPose, JogStep
 
 
 def _pose(x, y, z, qx, qy, qz, qw) -> Pose:
@@ -113,6 +113,8 @@ ROBOT_CONFIG = [
 ]
 STALE_AFTER_SEC = 1.0   # no new JointState message for longer than this -> "offline"
 ROS_TICK_SEC = 0.1      # ROS timer: refresh readiness + drain the queue
+JOG_STEP_M_DEFAULT = 0.001  # default discrete Cartesian jog step, in meters
+JOG_REPEAT_MS = 400     # hold-to-repeat interval for jog buttons
 # --------------------------------------------------------------------------
 
 
@@ -136,12 +138,15 @@ class RobotHandle:
         self.last_home_result = None              # (success|None, message) | None
         self.last_select_pose_result = None       # (success|None, message) | None
         self.last_move_to_pose_result = None      # (success|None, message) | None
+        self.last_jog_result = None               # (success|None, message) | None
+        self.jog_in_flight = False                # ROS thread writes, GUI thread reads
 
         self.sub = node.create_subscription(
             JointState, joint_states_topic, self._on_joint_state, 10)
         self.home_client = node.create_client(Trigger, f"/{name}/go_home")
         self.select_pose_client = node.create_client(SelectPose, f"/{name}/select_pose")
         self.move_to_pose_client = node.create_client(MoveToPose, f"/{name}/move_to_pose")
+        self.jog_client = node.create_client(JogStep, f"/{name}/jog")
 
     # ---- ROS thread --------------------------------------------------------
     def _on_joint_state(self, msg: JointState):
@@ -152,7 +157,8 @@ class RobotHandle:
         self._planner_ready = (
             self.home_client.service_is_ready()
             and self.select_pose_client.service_is_ready()
-            and self.move_to_pose_client.service_is_ready())
+            and self.move_to_pose_client.service_is_ready()
+            and self.jog_client.service_is_ready())
 
     # ---- GUI thread (only reads cached values) -----------------------------
     def is_online(self) -> bool:
@@ -163,6 +169,9 @@ class RobotHandle:
 
     def planner_ready(self) -> bool:
         return self._planner_ready
+
+    def is_jog_busy(self) -> bool:
+        return self.jog_in_flight
 
     def print_state(self):
         if self.latest_state is None:
@@ -203,6 +212,9 @@ class MultiRobotNode(Node):
     def request_move_to_custom_pose(self, name: str, pose: Pose):
         self._cmd_queue.put(("move_to_custom_pose", name, pose))
 
+    def request_jog(self, name: str, dx: float, dy: float, dz: float, in_tool_frame: bool):
+        self._cmd_queue.put(("jog", name, (dx, dy, dz, in_tool_frame)))
+
     # ---- ROS thread --------------------------------------------------------
     def _ros_tick(self):
         for handle in self.robots.values():
@@ -221,6 +233,8 @@ class MultiRobotNode(Node):
             if not handle.planner_ready():
                 self._set_result(handle, action, (False, "Planner not ready"))
                 continue
+            if action == "jog" and handle.jog_in_flight:
+                continue
             self._set_result(handle, action, (None, "running..."))
             if action == "home":
                 client, request = handle.home_client, Trigger.Request()
@@ -230,6 +244,11 @@ class MultiRobotNode(Node):
             elif action == "move_to_pose":
                 client = handle.move_to_pose_client
                 request = MoveToPose.Request(target=handle.test_poses[choice])
+            elif action == "jog":
+                client = handle.jog_client
+                dx, dy, dz, in_tool_frame = choice
+                request = JogStep.Request(dx=dx, dy=dy, dz=dz, in_tool_frame=in_tool_frame)
+                handle.jog_in_flight = True
             else:  # move_to_custom_pose - choice is already a literal Pose
                 client = handle.move_to_pose_client
                 request = MoveToPose.Request(target=choice)
@@ -241,10 +260,14 @@ class MultiRobotNode(Node):
             handle.last_home_result = result
         elif action == "select_pose":
             handle.last_select_pose_result = result
+        elif action == "jog":
+            handle.last_jog_result = result
         else:
             handle.last_move_to_pose_result = result
 
     def _on_command_done(self, handle: RobotHandle, action: str, future):
+        if action == "jog":
+            handle.jog_in_flight = False
         try:
             res = future.result()
             self._set_result(handle, action, (res.success, res.message))
@@ -374,12 +397,91 @@ class RobotPanel(ttk.LabelFrame):
             command=self._on_move_to_custom_pose, state="disabled")
         self.move_to_custom_pose_btn.grid(row=3, column=0, columnspan=6, pady=(4, 0), sticky="w")
 
+        jog_frame = ttk.LabelFrame(self, text="Jog End Effector", padding=6)
+        jog_frame.pack(anchor="w", pady=(6, 0), fill="x")
+
+        tk.Label(jog_frame, text="step (m)", font=("TkDefaultFont", 8), fg="#555").grid(
+            row=0, column=0, sticky="w")
+        self.jog_step_var = tk.StringVar(value=f"{JOG_STEP_M_DEFAULT:.3f}")
+        self.jog_step_entry = ttk.Entry(jog_frame, textvariable=self.jog_step_var, width=7)
+        self.jog_step_entry.grid(row=0, column=1, sticky="w", padx=(3, 8))
+
+        tk.Label(jog_frame, text="frame", font=("TkDefaultFont", 8), fg="#555").grid(
+            row=0, column=2, sticky="w")
+        self.jog_frame_var = tk.StringVar(value="tool")
+        self.jog_frame_combo = ttk.Combobox(
+            jog_frame, textvariable=self.jog_frame_var, values=["tool", "world"],
+            state="readonly", width=6)
+        self.jog_frame_combo.grid(row=0, column=3, sticky="w", padx=(3, 0))
+
+        tk.Label(
+            jog_frame, text="tool = end-effector frame, world = planning frame",
+            font=("TkDefaultFont", 8), fg="#555").grid(
+                row=1, column=0, columnspan=4, sticky="w", pady=(2, 3))
+
+        jog_specs = [
+            ("-X", (-1.0, 0.0, 0.0), 2, 0),
+            ("+X", (+1.0, 0.0, 0.0), 2, 2),
+            ("-Y", (0.0, -1.0, 0.0), 3, 0),
+            ("+Y", (0.0, +1.0, 0.0), 3, 2),
+            ("-Z", (0.0, 0.0, -1.0), 4, 0),
+            ("+Z", (0.0, 0.0, +1.0), 4, 2),
+        ]
+        self.jog_buttons = []
+        for text, direction, row, col in jog_specs:
+            btn = ttk.Button(jog_frame, text=text, width=4, state="disabled")
+            btn.grid(row=row, column=col, padx=2, pady=1)
+            self._bind_jog_button(btn, direction)
+            self.jog_buttons.append(btn)
+
         self.result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
         self.result.pack(anchor="w")
         self.select_pose_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
         self.select_pose_result.pack(anchor="w")
         self.move_to_pose_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
         self.move_to_pose_result.pack(anchor="w")
+        self.jog_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
+        self.jog_result.pack(anchor="w")
+
+    def _current_jog_step(self) -> float:
+        try:
+            step = float(self.jog_step_var.get())
+        except ValueError:
+            self.handle.last_jog_result = (False, "Invalid jog step")
+            return JOG_STEP_M_DEFAULT
+        if step <= 0.0:
+            self.handle.last_jog_result = (False, "Jog step must be > 0")
+            return JOG_STEP_M_DEFAULT
+        return max(0.0001, min(0.05, step))
+
+    def _bind_jog_button(self, btn: ttk.Button, direction):
+        ux, uy, uz = direction
+        state = {"after_id": None}
+
+        def fire():
+            step = self._current_jog_step()
+            in_tool_frame = self.jog_frame_var.get() == "tool"
+            self.handle.node.request_jog(
+                self.handle.name, ux * step, uy * step, uz * step, in_tool_frame)
+
+        def repeat():
+            fire()
+            state["after_id"] = btn.after(JOG_REPEAT_MS, repeat)
+
+        def start(event=None):
+            if not self.handle.planner_ready() or self.handle.is_jog_busy():
+                return
+            fire()
+            state["after_id"] = btn.after(JOG_REPEAT_MS, repeat)
+
+        def stop(event=None):
+            if state["after_id"] is not None:
+                btn.after_cancel(state["after_id"])
+                state["after_id"] = None
+
+        btn.bind("<ButtonPress-1>", start)
+        btn.bind("<ButtonRelease-1>", stop)
+        btn.bind("<Leave>", stop)
 
     def _on_move_to_custom_pose(self):
         try:
@@ -418,12 +520,17 @@ class RobotPanel(ttk.LabelFrame):
         self.test_pose_combo.config(state="readonly" if ready else "disabled")
         self.move_to_pose_btn.config(state="normal" if ready else "disabled")
         self.move_to_custom_pose_btn.config(state="normal" if ready else "disabled")
+        for btn in self.jog_buttons:
+            btn.config(state="normal" if ready else "disabled")
+        self.jog_step_entry.config(state="normal" if ready else "disabled")
+        self.jog_frame_combo.config(state="readonly" if ready else "disabled")
 
         self._update_result_label(self.result, "Home", self.handle.last_home_result)
         self._update_result_label(
             self.select_pose_result, "Pose", self.handle.last_select_pose_result)
         self._update_result_label(
             self.move_to_pose_result, "Move To Pose", self.handle.last_move_to_pose_result)
+        self._update_result_label(self.jog_result, "Jog", self.handle.last_jog_result)
 
         self.joints.config(state="normal")
         self.joints.delete("1.0", "end")
