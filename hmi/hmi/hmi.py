@@ -114,6 +114,7 @@ ROBOT_CONFIG = [
 STALE_AFTER_SEC = 1.0   # no new JointState message for longer than this -> "offline"
 ROS_TICK_SEC = 0.1      # ROS timer: refresh readiness + drain the queue
 JOG_STEP_M_DEFAULT = 0.001  # default discrete Cartesian jog step, in meters
+JOG_STEP_M_MAX = 1.0    # largest step the GUI will accept, in meters
 JOG_REPEAT_MS = 400     # hold-to-repeat interval for jog buttons
 # --------------------------------------------------------------------------
 
@@ -452,7 +453,7 @@ class RobotPanel(ttk.LabelFrame):
         if step <= 0.0:
             self.handle.last_jog_result = (False, "Jog step must be > 0")
             return JOG_STEP_M_DEFAULT
-        return max(0.0001, min(0.05, step))
+        return max(0.0001, min(JOG_STEP_M_MAX, step))
 
     def _bind_jog_button(self, btn: ttk.Button, direction):
         ux, uy, uz = direction
