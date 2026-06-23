@@ -43,6 +43,26 @@ It logs each component to `/tmp/sim_bringup_<timestamp>.log`,
 `/tmp/hmi_motion_server_<timestamp>.log`, and `/tmp/hmi_gui_<timestamp>.log`,
 and prints the log paths plus a final status line once everything is ready.
 
+## sim_task script
+
+`task_coordinator/scripts/run_sim_task.sh` automates running the docking
+demo end-to-end without the HMI: it kills any leftover sim/`move_group`
+instances, launches `iss_moveit_gz_sim.launch.py`, waits for both robot
+controllers to come up, then runs `task_coordinator sim_task` in the
+foreground so you can watch the bean -> goal1 -> attach -> goal2 -> nemo ->
+goal3 sequence execute live. `sim_task` detaches the capsule from bean
+itself as its first action, so the script doesn't need to do that
+separately. It doesn't start `hmi_motion_server` or the HMI GUI -
+`sim_task` drives both robots directly with its own `MoveGroupInterface`s,
+so those would just be redundant clients.
+
+```
+bash src/robot_modelling/task_coordinator/scripts/run_sim_task.sh
+```
+
+Gazebo/`move_group`/rviz are left running after `sim_task` finishes so you
+can inspect the result; rerun the script for a clean restart.
+
 ## working spawns:  
 
 ### individually, in rviz, w/o moveit: 
