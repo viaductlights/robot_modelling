@@ -28,6 +28,7 @@ ament_export_dependencies(Eigen3)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SelectPose.srv"
   "srv/MoveToPose.srv"
+  "srv/JogStep.srv"
   DEPENDENCIES geometry_msgs
 )
 
