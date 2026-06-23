@@ -38,10 +38,10 @@ public:
   {
     bean_group_.setPlanningPipelineId("ompl");
     nemo_group_.setPlanningPipelineId("ompl");
-    bean_group_.setMaxVelocityScalingFactor(0.8);
-    bean_group_.setMaxAccelerationScalingFactor(0.3);
-    nemo_group_.setMaxVelocityScalingFactor(0.1);
-    nemo_group_.setMaxAccelerationScalingFactor(0.1);
+    bean_group_.setMaxVelocityScalingFactor(0.6);
+    bean_group_.setMaxAccelerationScalingFactor(0.2);
+    nemo_group_.setMaxVelocityScalingFactor(0.8);
+    nemo_group_.setMaxAccelerationScalingFactor(0.3);
   }
 
   void run(){
@@ -65,17 +65,17 @@ public:
     attachCapsuleToBean();
 
         std::this_thread::sleep_for(1s);
-    // bean to goal2 carrying capsule
+   // bean to goal2 carrying capsule
     bool joint_success2 = moveTo(bean_group_,
-           {0.20, 0.38, 1.344, 2.496, -1.309, 0.750},
+           {-0.87, 1.45, 1.065, 1.326, -5.39, 2.28},
            "bean -> goal2");
     RCLCPP_INFO(logger_, "status of second pose: %d", joint_success2);
-/*
+
     // nemo to goal3, then transfer capsule from bean to nemo
     bool joint_success3 = moveTo(nemo_group_,
-               {-0.907, -0.192, -0.174, -2.077, 0.716, 0.628, -0.506},
+               {1.29, 1.45, -0.52, 0.87, 0.14, 1.82, -1.71},
                "nemo -> goal3");
-    RCLCPP_INFO(logger_, "status of third pose: %d", joint_success3);*/
+    RCLCPP_INFO(logger_, "status of third pose: %d", joint_success3);
     //{
      // attachCapsuleToNemo();
       //detachCapsuleFromBean();

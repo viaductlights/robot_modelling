@@ -10,7 +10,7 @@
   <joint name="fixedFrameToWorld" type="fixed">
     <parent link="world"/>
     <child link="bean_base_link"/>
-    <origin rpy="1.57 1.57 0.0" xyz="92.6 -2.35 -35"/>
+    <origin rpy="1.57 1.57 0.0" xyz="90.1 -1.95 -36.0"/>
   </joint>
   
   <!-- Basic Extraterrestrial Articulated maNipulator2 (BEAN2) is defined-->

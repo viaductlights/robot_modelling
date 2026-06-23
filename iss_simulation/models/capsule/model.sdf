@@ -1,13 +1,13 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
 	<model name="capsule">
-	  <pose>82.37 -9.64 -39.14 0.02 0.05 -1.55</pose>
+	  <pose>79.9 -9.0 -39.9 0.02 0.05 -1.55</pose>
 	  <!--target link for docking -->
 	  <link name="docking_target">
 		  <pose>0 0 0 0 0 0</pose>
 
 		  <inertial>
-		    <mass>4.0</mass>
+		    <mass>8.0</mass>
 		    <inertia>
 			<ixx>0.5</ixx>
 			<iyy>0.5</iyy>
