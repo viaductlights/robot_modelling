@@ -38,8 +38,8 @@ public:
   {
     bean_group_.setPlanningPipelineId("ompl");
     nemo_group_.setPlanningPipelineId("ompl");
-    bean_group_.setMaxVelocityScalingFactor(0.6);
-    bean_group_.setMaxAccelerationScalingFactor(0.2);
+    bean_group_.setMaxVelocityScalingFactor(0.1);
+    bean_group_.setMaxAccelerationScalingFactor(0.1);
     nemo_group_.setMaxVelocityScalingFactor(0.8);
     nemo_group_.setMaxAccelerationScalingFactor(0.3);
   }
