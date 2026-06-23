@@ -14,6 +14,48 @@ std::string readFile(const std::string & path)
   buffer << file.rdbuf();
   return buffer.str();
 }
+
+// Translates MoveIt's error code into a short, specific reason - lets
+// callers distinguish e.g. "no IK solution for this pose" from "found a
+// plan but the goal is in collision" from "execution failed", instead of
+// just a flat "failed".
+std::string describeMoveItError(const moveit::core::MoveItErrorCode & code)
+{
+  using moveit::core::MoveItErrorCode;
+  switch (code.val) {
+    case MoveItErrorCode::PLANNING_FAILED:
+      return "no valid path found";
+    case MoveItErrorCode::NO_IK_SOLUTION:
+      return "no IK solution for target pose";
+    case MoveItErrorCode::INVALID_MOTION_PLAN:
+      return "invalid motion plan";
+    case MoveItErrorCode::MOTION_PLAN_INVALIDATED_BY_ENVIRONMENT_CHANGE:
+      return "plan invalidated by environment change";
+    case MoveItErrorCode::CONTROL_FAILED:
+      return "controller failed during execution";
+    case MoveItErrorCode::TIMED_OUT:
+      return "timed out";
+    case MoveItErrorCode::PREEMPTED:
+      return "preempted by another command";
+    case MoveItErrorCode::START_STATE_IN_COLLISION:
+      return "start state in collision";
+    case MoveItErrorCode::GOAL_IN_COLLISION:
+      return "target pose is in collision";
+    case MoveItErrorCode::GOAL_VIOLATES_PATH_CONSTRAINTS:
+      return "goal violates path constraints";
+    case MoveItErrorCode::GOAL_CONSTRAINTS_VIOLATED:
+      return "goal constraints violated";
+    case MoveItErrorCode::INVALID_GOAL_CONSTRAINTS:
+      return "invalid goal constraints (target pose likely unreachable)";
+    case MoveItErrorCode::FAILURE:
+      // MoveIt's generic catch-all - typically means the OMPL planner
+      // couldn't find any valid path/IK solution for the target pose
+      // within its allotted attempts, without a more specific reason.
+      return "no valid path/IK solution found - target pose likely unreachable";
+    default:
+      return "MoveIt error code " + std::to_string(code.val);
+  }
+}
 }  // namespace
 
 namespace task_coordinator
@@ -87,15 +129,26 @@ std::unique_ptr<moveit::planning_interface::MoveGroupInterface> makeMoveGroup(
 bool planAndExecute(
   moveit::planning_interface::MoveGroupInterface & group,
   const rclcpp::Logger & logger,
-  const std::string & label)
+  const std::string & label,
+  std::string * error_out)
 {
   moveit::planning_interface::MoveGroupInterface::Plan plan;
-  if (group.plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-    RCLCPP_ERROR(logger, "%s: planning failed", label.c_str());
+  auto plan_result = group.plan(plan);
+  if (plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
+    std::string reason = describeMoveItError(plan_result);
+    RCLCPP_ERROR(logger, "%s: planning failed - %s", label.c_str(), reason.c_str());
+    if (error_out) {
+      *error_out = "planning failed: " + reason;
+    }
     return false;
   }
-  if (group.execute(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-    RCLCPP_ERROR(logger, "%s: execution failed", label.c_str());
+  auto exec_result = group.execute(plan);
+  if (exec_result != moveit::core::MoveItErrorCode::SUCCESS) {
+    std::string reason = describeMoveItError(exec_result);
+    RCLCPP_ERROR(logger, "%s: execution failed - %s", label.c_str(), reason.c_str());
+    if (error_out) {
+      *error_out = "execution failed: " + reason;
+    }
     return false;
   }
   RCLCPP_INFO(logger, "%s: done", label.c_str());

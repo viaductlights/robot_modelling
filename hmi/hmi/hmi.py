@@ -6,17 +6,23 @@ tkinter + rclpy (ROS2 Jazzy)
   - rclpy spins in a background thread, tkinter owns the main thread
   - "Home" goes through /<name>/go_home (Trigger); picking a pose from the
     first dropdown goes through /<name>/select_pose (named joint target);
-    picking a pose from the second dropdown goes through /<name>/move_to_pose
-    (arbitrary Cartesian target, MoveIt solves IK) - all three are
+    picking a pose from the second dropdown, or entering X/Y/Z/Roll/Pitch/Yaw
+    in the "Custom Pose (IK)" panel, goes through /<name>/move_to_pose
+    (arbitrary Cartesian target, MoveIt solves IK) - all are
     task_coordinator/hmi_motion_server services, MoveIt-planned and
     collision-checked
   - Controls are only enabled once their service is available (backend ready)
   - EVERY rclpy call happens on the executor thread (marshalled via a queue)
   - home_pose comes from the SRDF (single source of truth); the other poses
     are hardcoded server-side (see hmi_motion_server.cpp) - the GUI only
-    sends the chosen name (or, for move_to_pose, a hardcoded test Pose)
+    sends the chosen name (or a Pose, for move_to_pose/move_to_custom_pose)
+  - the "reachable hint" bounding box shown in the Custom Pose panel comes
+    from task_coordinator/scripts/sample_workspace.py (a Monte Carlo FK
+    sweep) - it's just a hint, not enforced; MoveIt's planner/IK is the
+    real reachability check
 """
 
+import math
 import queue
 import threading
 from functools import partial
@@ -39,6 +45,30 @@ def _pose(x, y, z, qx, qy, qz, qw) -> Pose:
     return p
 
 
+def _euler_to_quaternion(roll, pitch, yaw):
+    """roll/pitch/yaw in radians, intrinsic ZYX (REP-103) convention."""
+    cr, sr = math.cos(roll * 0.5), math.sin(roll * 0.5)
+    cp, sp = math.cos(pitch * 0.5), math.sin(pitch * 0.5)
+    cy, sy = math.cos(yaw * 0.5), math.sin(yaw * 0.5)
+    return (
+        sr * cp * cy - cr * sp * sy,
+        cr * sp * cy + sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+        cr * cp * cy + sr * sp * sy,
+    )
+
+
+def _quaternion_to_euler(qx, qy, qz, qw):
+    """Inverse of _euler_to_quaternion - only used to pre-fill the GUI's
+    custom-pose fields from an existing Pose, so it just needs to be the
+    self-consistent inverse of the function above, not match any external
+    convention bit-for-bit."""
+    roll = math.atan2(2 * (qw * qx + qy * qz), 1 - 2 * (qx * qx + qy * qy))
+    pitch = math.asin(max(-1.0, min(1.0, 2 * (qw * qy - qz * qx))))
+    yaw = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
+    return roll, pitch, yaw
+
+
 # ---- Configuration --------------------------------------------------------
 # "poses" must match the names hmi_motion_server.cpp knows about
 # (kBeanPoses/kNemoPoses). "test_poses" are hardcoded Cartesian targets for
@@ -48,6 +78,13 @@ def _pose(x, y, z, qx, qy, qz, qw) -> Pose:
 # they're known to be reachable. Values are in MoveIt's planning frame
 # ("world" here - this sim places robots at ISS-scale coordinates, tens of
 # meters from the world origin, not in each robot's own base_link frame).
+# "workspace_bounds" is the end-effector position bounding box from
+# task_coordinator/scripts/sample_workspace.py (5000-sample Monte Carlo FK
+# sweep over the URDF's joint limits), rounded outward to 1 decimal (floor
+# the lower bound, ceil the upper bound, so rounding only widens the range,
+# never shrinks it past what was actually sampled reachable). Used as the
+# custom-pose sliders' drag range - the real reachability check is still
+# whether MoveIt's planner/IK succeeds.
 ROBOT_CONFIG = [
     {
         "name": "nemo",
@@ -59,6 +96,7 @@ ROBOT_CONFIG = [
                 0.8808892143064816, 0.005274580505267679,
                 0.46589638463297334, -0.08334824356234283),
         },
+        "workspace_bounds": {"x": (87.3, 92.4), "y": (-3.1, 1.9), "z": (-37.2, -32.0)},
     },
     {
         "name": "bean",
@@ -70,6 +108,7 @@ ROBOT_CONFIG = [
                 -0.13143097974709886, 0.7688423246950394,
                 -0.21001137463211458, 0.5894935112835216),
         },
+        "workspace_bounds": {"x": (77.2, 107.7), "y": (-18.1, 11.3), "z": (-50.1, -19.9)},
     },
 ]
 STALE_AFTER_SEC = 1.0   # no new JointState message for longer than this -> "offline"
@@ -83,11 +122,12 @@ class RobotHandle:
 
     def __init__(
             self, node: Node, name: str, joint_states_topic: str,
-            poses: list, test_poses: dict):
+            poses: list, test_poses: dict, workspace_bounds: dict):
         self.node = node
         self.name = name
         self.poses = poses
         self.test_poses = test_poses
+        self.workspace_bounds = workspace_bounds
 
         self.latest_state = None
         self.last_stamp = 0.0
@@ -143,7 +183,7 @@ class MultiRobotNode(Node):
         self.robots = {
             cfg["name"]: RobotHandle(
                 self, cfg["name"], cfg["joint_states_topic"],
-                cfg["poses"], cfg["test_poses"])
+                cfg["poses"], cfg["test_poses"], cfg["workspace_bounds"])
             for cfg in ROBOT_CONFIG
         }
         self._cmd_queue = queue.Queue()
@@ -159,6 +199,9 @@ class MultiRobotNode(Node):
 
     def request_move_to_pose(self, name: str, test_pose_name: str):
         self._cmd_queue.put(("move_to_pose", name, test_pose_name))
+
+    def request_move_to_custom_pose(self, name: str, pose: Pose):
+        self._cmd_queue.put(("move_to_custom_pose", name, pose))
 
     # ---- ROS thread --------------------------------------------------------
     def _ros_tick(self):
@@ -184,9 +227,12 @@ class MultiRobotNode(Node):
             elif action == "select_pose":
                 client = handle.select_pose_client
                 request = SelectPose.Request(pose_name=choice)
-            else:  # move_to_pose
+            elif action == "move_to_pose":
                 client = handle.move_to_pose_client
                 request = MoveToPose.Request(target=handle.test_poses[choice])
+            else:  # move_to_custom_pose - choice is already a literal Pose
+                client = handle.move_to_pose_client
+                request = MoveToPose.Request(target=choice)
             future = client.call_async(request)
             future.add_done_callback(partial(self._on_command_done, handle, action))
 
@@ -262,12 +308,99 @@ class RobotPanel(ttk.LabelFrame):
             state="disabled")
         self.move_to_pose_btn.pack(side="left", padx=2)
 
+        custom_pose_frame = ttk.LabelFrame(self, text="Custom Pose (IK)", padding=6)
+        custom_pose_frame.pack(anchor="w", pady=(6, 0), fill="x")
+
+        bounds = handle.workspace_bounds
+        seed_pose = next(iter(handle.test_poses.values()))
+        roll, pitch, yaw = _quaternion_to_euler(
+            seed_pose.orientation.x, seed_pose.orientation.y,
+            seed_pose.orientation.z, seed_pose.orientation.w)
+        seed_values = [
+            seed_pose.position.x, seed_pose.position.y, seed_pose.position.z,
+            math.degrees(roll), math.degrees(pitch), math.degrees(yaw),
+        ]
+        # Slider ranges: X/Y/Z come from sample_workspace.py's Monte Carlo FK
+        # sweep (a position-only hint, not a guarantee - orientation affects
+        # reachability too, see ROBOT_CONFIG comment). Roll/Pitch/Yaw just
+        # get the full -180..180 range since we have no orientation-reachability
+        # data. Sliders only bound the *drag* range - typing a number in the
+        # entry still sends exactly what's typed, slider or not.
+        field_specs = [
+            ("X (m)", bounds["x"]), ("Y (m)", bounds["y"]), ("Z (m)", bounds["z"]),
+            ("Roll (deg)", (-180.0, 180.0)), ("Pitch (deg)", (-180.0, 180.0)),
+            ("Yaw (deg)", (-180.0, 180.0)),
+        ]
+
+        self.custom_pose_entries = {}
+        self.custom_pose_scales = {}
+        for col, ((label, (lo, hi)), value) in enumerate(zip(field_specs, seed_values)):
+            tk.Label(custom_pose_frame, text=label, font=("TkDefaultFont", 8)).grid(
+                row=0, column=col, sticky="w")
+
+            entry = ttk.Entry(custom_pose_frame, width=8)
+            entry.insert(0, f"{value:.3f}")
+            entry.grid(row=2, column=col, padx=2)
+
+            def on_slide(v, entry=entry):
+                entry.delete(0, "end")
+                entry.insert(0, f"{float(v):.3f}")
+
+            scale = ttk.Scale(custom_pose_frame, from_=lo, to=hi, orient="horizontal",
+                               length=100, command=on_slide)
+            scale.set(value)
+            scale.grid(row=1, column=col, padx=2, sticky="ew")
+
+            def on_entry_commit(event, scale=scale, entry=entry, lo=lo, hi=hi):
+                # Clamping (rather than rejecting) an out-of-range typed
+                # value: scale.set() clamps to [lo, hi] and fires on_slide,
+                # which rewrites the entry to match - so entry and slider
+                # always agree, and a stray "1000" doesn't linger looking
+                # like a sane number.
+                try:
+                    value = float(entry.get())
+                except ValueError:
+                    return
+                scale.set(max(lo, min(hi, value)))
+
+            entry.bind("<Return>", on_entry_commit)
+            entry.bind("<FocusOut>", on_entry_commit)
+
+            self.custom_pose_entries[label] = entry
+            self.custom_pose_scales[label] = scale
+
+        self.move_to_custom_pose_btn = ttk.Button(
+            custom_pose_frame, text="Move To Pose",
+            command=self._on_move_to_custom_pose, state="disabled")
+        self.move_to_custom_pose_btn.grid(row=3, column=0, columnspan=6, pady=(4, 0), sticky="w")
+
         self.result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
         self.result.pack(anchor="w")
         self.select_pose_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
         self.select_pose_result.pack(anchor="w")
         self.move_to_pose_result = tk.Label(self, text="", fg="#555", font=("TkDefaultFont", 9))
         self.move_to_pose_result.pack(anchor="w")
+
+    def _on_move_to_custom_pose(self):
+        try:
+            x, y, z, roll, pitch, yaw = (
+                float(self.custom_pose_entries[label].get())
+                for label in ["X (m)", "Y (m)", "Z (m)", "Roll (deg)", "Pitch (deg)", "Yaw (deg)"]
+            )
+        except ValueError:
+            # X/Y/Z are normally already clamped to workspace_bounds by
+            # on_entry_commit (slider drag range) by the time this runs -
+            # this only fires for genuinely non-numeric text. Written to
+            # last_move_to_pose_result (not the label directly) so refresh()
+            # doesn't overwrite it with the stale service result a moment
+            # later.
+            self.handle.last_move_to_pose_result = (False, "Invalid number in custom pose fields")
+            return
+
+        qx, qy, qz, qw = _euler_to_quaternion(
+            math.radians(roll), math.radians(pitch), math.radians(yaw))
+        pose = _pose(x, y, z, qx, qy, qz, qw)
+        self.handle.node.request_move_to_custom_pose(self.handle.name, pose)
 
     def refresh(self):
         online = self.handle.is_online()
@@ -284,6 +417,7 @@ class RobotPanel(ttk.LabelFrame):
         self.select_pose_btn.config(state="normal" if ready else "disabled")
         self.test_pose_combo.config(state="readonly" if ready else "disabled")
         self.move_to_pose_btn.config(state="normal" if ready else "disabled")
+        self.move_to_custom_pose_btn.config(state="normal" if ready else "disabled")
 
         self._update_result_label(self.result, "Home", self.handle.last_home_result)
         self._update_result_label(

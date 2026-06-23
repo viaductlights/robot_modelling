@@ -33,10 +33,14 @@ std::unique_ptr<moveit::planning_interface::MoveGroupInterface> makeMoveGroup(
 // Plans and executes whatever target was already set on group via
 // setNamedTarget/setJointValueTarget/setPoseTarget etc. The caller only sets
 // the target - this part (plan -> execute -> logging) is the same for any
-// kind of target.
+// kind of target. On failure, if error_out is given, it's set to a short
+// human-readable reason (e.g. "planning failed: no IK solution for target
+// pose") derived from MoveIt's own MoveItErrorCode - distinguishes "couldn't
+// find any path/IK solution" from "found a plan but execution failed" etc.
 bool planAndExecute(
   moveit::planning_interface::MoveGroupInterface & group,
   const rclcpp::Logger & logger,
-  const std::string & label);
+  const std::string & label,
+  std::string * error_out = nullptr);
 
 }  // namespace task_coordinator

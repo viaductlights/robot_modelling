@@ -23,33 +23,37 @@ namespace
 bool goNamedHome(
   MoveGroupInterface & group,
   const rclcpp::Logger & logger,
-  const std::string & label)
+  const std::string & label,
+  std::string & error_out)
 {
   group.setNamedTarget("home_pose");
-  return planAndExecute(group, logger, label);
+  return planAndExecute(group, logger, label, &error_out);
 }
 
 bool goJointTargets(
   MoveGroupInterface & group,
   const rclcpp::Logger & logger,
   const std::string & label,
-  const std::vector<double> & joint_targets)
+  const std::vector<double> & joint_targets,
+  std::string & error_out)
 {
   if (!group.setJointValueTarget(joint_targets)) {
-    RCLCPP_ERROR(logger, "%s: joint targets out of bounds or invalid size", label.c_str());
+    error_out = "joint targets out of bounds or invalid size";
+    RCLCPP_ERROR(logger, "%s: %s", label.c_str(), error_out.c_str());
     return false;
   }
-  return planAndExecute(group, logger, label);
+  return planAndExecute(group, logger, label, &error_out);
 }
 
 bool goPoseTarget(
   MoveGroupInterface & group,
   const rclcpp::Logger & logger,
   const std::string & label,
-  const geometry_msgs::msg::Pose & pose)
+  const geometry_msgs::msg::Pose & pose,
+  std::string & error_out)
 {
   group.setPoseTarget(pose);
-  return planAndExecute(group, logger, label);
+  return planAndExecute(group, logger, label, &error_out);
 }
 
 // Named joint poses, carried over from sim_task.cpp's hardcoded joint
@@ -76,7 +80,7 @@ bool selectNamedPose(
     error_out = "Unknown pose: " + pose_name;
     return false;
   }
-  return goJointTargets(group, logger, label, it->second);
+  return goJointTargets(group, logger, label, it->second, error_out);
 }
 }  // namespace
 
@@ -121,9 +125,10 @@ int main(int argc, char ** argv)
       const std::shared_ptr<std_srvs::srv::Trigger::Request>,
       std::shared_ptr<std_srvs::srv::Trigger::Response> response)
     {
-      bool ok = goNamedHome(*bean_move_group, logger, "Bean home_pose");
+      std::string error;
+      bool ok = goNamedHome(*bean_move_group, logger, "Bean home_pose", error);
       response->success = ok;
-      response->message = ok ? "Bean moved to home_pose" : "Bean home_pose failed";
+      response->message = ok ? "Bean moved to home_pose" : "Bean home_pose failed: " + error;
     },
     rclcpp::ServicesQoS(), bean_cb_group);
 
@@ -133,9 +138,10 @@ int main(int argc, char ** argv)
       const std::shared_ptr<std_srvs::srv::Trigger::Request>,
       std::shared_ptr<std_srvs::srv::Trigger::Response> response)
     {
-      bool ok = goNamedHome(*nemo_move_group, logger, "Nemo home_pose");
+      std::string error;
+      bool ok = goNamedHome(*nemo_move_group, logger, "Nemo home_pose", error);
       response->success = ok;
-      response->message = ok ? "Nemo moved to home_pose" : "Nemo home_pose failed";
+      response->message = ok ? "Nemo moved to home_pose" : "Nemo home_pose failed: " + error;
     },
     rclcpp::ServicesQoS(), nemo_cb_group);
 
@@ -175,9 +181,10 @@ int main(int argc, char ** argv)
       const std::shared_ptr<task_coordinator::srv::MoveToPose::Request> request,
       std::shared_ptr<task_coordinator::srv::MoveToPose::Response> response)
     {
-      bool ok = goPoseTarget(*bean_move_group, logger, "Bean move_to_pose", request->target);
+      std::string error;
+      bool ok = goPoseTarget(*bean_move_group, logger, "Bean move_to_pose", request->target, error);
       response->success = ok;
-      response->message = ok ? "Bean reached target pose" : "Bean move_to_pose failed";
+      response->message = ok ? "Bean reached target pose" : "Bean move_to_pose failed: " + error;
     },
     rclcpp::ServicesQoS(), bean_cb_group);
 
@@ -187,9 +194,10 @@ int main(int argc, char ** argv)
       const std::shared_ptr<task_coordinator::srv::MoveToPose::Request> request,
       std::shared_ptr<task_coordinator::srv::MoveToPose::Response> response)
     {
-      bool ok = goPoseTarget(*nemo_move_group, logger, "Nemo move_to_pose", request->target);
+      std::string error;
+      bool ok = goPoseTarget(*nemo_move_group, logger, "Nemo move_to_pose", request->target, error);
       response->success = ok;
-      response->message = ok ? "Nemo reached target pose" : "Nemo move_to_pose failed";
+      response->message = ok ? "Nemo reached target pose" : "Nemo move_to_pose failed: " + error;
     },
     rclcpp::ServicesQoS(), nemo_cb_group);
 
