@@ -82,9 +82,6 @@ can inspect the result; rerun the script for a clean restart.
 ### sim task, after ^ launch  
 `ros2 run task_coordinator sim_task"
 
-#### note  
-need to write single launchfile for sim!  
-
 ### HMI + motion server, w/ moveit
 build custom interfaces + backend + HMI:  
 `colcon build --packages-select task_coordinator hmi`  

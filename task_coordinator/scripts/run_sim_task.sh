@@ -2,11 +2,18 @@
 # Kills any previous sim/move_group instances and runs the full docking demo
 # end-to-end: launches Gazebo + both move_groups + rviz (via the
 # iss_moveit_gz_sim launch file), waits for both robot controllers to come
-# up, then runs `task_coordinator sim_task` in the foreground so you can
-# watch the bean -> goal1 -> attach -> goal2 -> nemo -> goal3 sequence
-# execute live. sim_task detaches the capsule from bean itself as its first
-# action (DetachableJoint has no "start detached" option - it auto-attaches
-# at world load), so this script doesn't need to do that separately.
+# up, publishes a detach for the capsule itself (see note below), then runs
+# `task_coordinator sim_task` in the foreground so you can watch the
+# bean -> goal1 -> attach -> goal2 -> nemo -> goal3 sequence execute live.
+#
+# sim_task does also detach the capsule itself as its first action
+# (DetachableJoint has no "start detached" option - it auto-attaches at
+# world load), but its publish() call doesn't wait for a matched subscriber,
+# so if the ros_gz_bridge hasn't finished wiring up /bean/detach yet, that
+# message is silently dropped. This script publishes its own detach first,
+# via `ros2 topic pub --once`, which does block until it finds a matched
+# subscriber - so the capsule is guaranteed detached before sim_task starts
+# moving bean, regardless of how the bridge/discovery timing lines up.
 #
 # Does NOT start hmi_motion_server or the HMI GUI - sim_task drives bean and
 # nemo directly with its own MoveGroupInterfaces, so those aren't needed
@@ -49,6 +56,18 @@ echo "==> Launching iss_moveit_gz_sim.launch.py (log: ${SIM_LOG})"
 nohup bash -c "source install/setup.bash && ros2 launch iss_simulation iss_moveit_gz_sim.launch.py" \
   > "${SIM_LOG}" 2>&1 &
 disown
+
+echo "==> Waiting for /bean/detach topic to come up"
+for i in $(seq 1 30); do
+  if ros2 topic list 2>/dev/null | grep -q "^/bean/detach$"; then
+    echo "    found after ${i}s"
+    break
+  fi
+  sleep 1
+done
+
+echo "==> Detaching capsule from bean before anything can move"
+timeout 5 ros2 topic pub --once /bean/detach std_msgs/msg/Empty "{}" >/dev/null
 
 echo "==> Waiting for both robot_controllers to activate"
 for i in $(seq 1 60); do
