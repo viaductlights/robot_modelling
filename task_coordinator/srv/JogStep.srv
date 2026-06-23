@@ -1,0 +1,7 @@
+float64 dx
+float64 dy
+float64 dz
+bool in_tool_frame
+---
+bool success
+string message

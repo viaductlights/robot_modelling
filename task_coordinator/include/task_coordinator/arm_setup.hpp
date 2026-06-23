@@ -43,4 +43,23 @@ bool planAndExecute(
   const std::string & label,
   std::string * error_out = nullptr);
 
+// Jogs the group's end-effector by (dx, dy, dz) meters. If in_tool_frame is
+// false, the delta is interpreted in MoveIt's planning/world frame. If
+// in_tool_frame is true, the delta is interpreted in the current end-effector
+// frame and rotated into the planning frame before planning. This uses
+// MoveIt's Cartesian path interpolation for a straight-line end-effector move,
+// not OMPL free-space planning.
+// On failure, if error_out is given, it is set to a short human-readable
+// reason derived from MoveIt's error code or the incomplete Cartesian-path
+// fraction.
+bool jogCartesian(
+  moveit::planning_interface::MoveGroupInterface & group,
+  const rclcpp::Logger & logger,
+  const std::string & label,
+  double dx,
+  double dy,
+  double dz,
+  bool in_tool_frame = false,
+  std::string * error_out = nullptr);
+
 }  // namespace task_coordinator

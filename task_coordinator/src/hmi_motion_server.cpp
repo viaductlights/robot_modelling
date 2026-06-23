@@ -5,6 +5,7 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <task_coordinator/srv/select_pose.hpp>
 #include <task_coordinator/srv/move_to_pose.hpp>
+#include <task_coordinator/srv/jog_step.hpp>
 #include <moveit/move_group_interface/move_group_interface.hpp>
 
 #include <map>
@@ -17,6 +18,7 @@ using moveit::planning_interface::MoveGroupInterface;
 using task_coordinator::makeArmNode;
 using task_coordinator::makeMoveGroup;
 using task_coordinator::planAndExecute;
+using task_coordinator::jogCartesian;
 
 namespace
 {
@@ -82,6 +84,20 @@ bool selectNamedPose(
   }
   return goJointTargets(group, logger, label, it->second, error_out);
 }
+
+bool jogStep(
+  MoveGroupInterface & group,
+  const rclcpp::Logger & logger,
+  const std::string & label,
+  double dx,
+  double dy,
+  double dz,
+  bool in_tool_frame,
+  std::string & error_out)
+{
+  return jogCartesian(group, logger, label, dx, dy, dz, in_tool_frame, &error_out);
+}
+
 }  // namespace
 
 int main(int argc, char ** argv)
@@ -201,10 +217,38 @@ int main(int argc, char ** argv)
     },
     rclcpp::ServicesQoS(), nemo_cb_group);
 
+  auto bean_jog_srv = service_node->create_service<task_coordinator::srv::JogStep>(
+    "/bean/jog",
+    [&bean_move_group, logger](
+      const std::shared_ptr<task_coordinator::srv::JogStep::Request> request,
+      std::shared_ptr<task_coordinator::srv::JogStep::Response> response)
+    {
+      std::string error;
+      bool ok = jogStep(
+        *bean_move_group, logger, "Bean jog", request->dx, request->dy, request->dz, request->in_tool_frame, error);
+      response->success = ok;
+      response->message = ok ? "Bean jogged" : error;
+    },
+    rclcpp::ServicesQoS(), bean_cb_group);
+
+  auto nemo_jog_srv = service_node->create_service<task_coordinator::srv::JogStep>(
+    "/nemo/jog",
+    [&nemo_move_group, logger](
+      const std::shared_ptr<task_coordinator::srv::JogStep::Request> request,
+      std::shared_ptr<task_coordinator::srv::JogStep::Response> response)
+    {
+      std::string error;
+      bool ok = jogStep(
+        *nemo_move_group, logger, "Nemo jog", request->dx, request->dy, request->dz, request->in_tool_frame, error);
+      response->success = ok;
+      response->message = ok ? "Nemo jogged" : error;
+    },
+    rclcpp::ServicesQoS(), nemo_cb_group);
+
   RCLCPP_INFO(
     logger,
     "Services ready: /bean/go_home, /nemo/go_home, /bean/select_pose, /nemo/select_pose, "
-    "/bean/move_to_pose, /nemo/move_to_pose");
+    "/bean/move_to_pose, /nemo/move_to_pose, /bean/jog, /nemo/jog");
 
   spinner.join();
   rclcpp::shutdown();
